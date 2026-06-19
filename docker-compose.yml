@@ -11,19 +11,6 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./migrations/001_initial_schema.up.sql:/docker-entrypoint-initdb.d/001_schema.sql:ro
-      - ./migrations/002_local_auth.up.sql:/docker-entrypoint-initdb.d/002_local_auth.sql:ro
-      - ./migrations/003_system_settings.up.sql:/docker-entrypoint-initdb.d/003_system_settings.sql:ro
-      - ./migrations/005_ui_theme.up.sql:/docker-entrypoint-initdb.d/004_ui_theme.sql:ro
-      - ./migrations/006_books.up.sql:/docker-entrypoint-initdb.d/005_books.sql:ro
-      - ./migrations/007_ui_language.up.sql:/docker-entrypoint-initdb.d/006_ui_language.sql:ro
-      - ./migrations/008_document_translations.up.sql:/docker-entrypoint-initdb.d/007_document_translations.sql:ro
-      - ./migrations/009_book_translations.up.sql:/docker-entrypoint-initdb.d/008_book_translations.sql:ro
-      - ./migrations/010_space_groups.up.sql:/docker-entrypoint-initdb.d/009_space_groups.sql:ro
-      - ./migrations/011_oidc_sync_groups.up.sql:/docker-entrypoint-initdb.d/010_oidc_sync_groups.sql:ro
-      - ./migrations/012_production_hardening.up.sql:/docker-entrypoint-initdb.d/011_production_hardening.sql:ro
-      - ./migrations/013_team_kb.up.sql:/docker-entrypoint-initdb.d/012_team_kb.sql:ro
-      - ./migrations/014_enterprise_kb.up.sql:/docker-entrypoint-initdb.d/013_enterprise_kb.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U treepage"]
       interval: 5s
@@ -57,6 +44,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      backend-server:
+        condition: service_started
       redis:
         condition: service_started
 
@@ -73,6 +62,7 @@ services:
       SYNC_SERVICE_URL: http://backend-sync:8083
       INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-dev-internal-token-change-in-production}
       ATTACHMENTS_DIR: /data/attachments
+      MIGRATIONS_DIR: /app/migrations
       SEARCH_BACKEND: ${SEARCH_BACKEND:-postgres}
       OPENSEARCH_URL: ${OPENSEARCH_URL:-}
       # Optional: LLM + embeddings for RAG (OpenAI-compatible chat + Ollama /api/embeddings)
@@ -84,6 +74,7 @@ services:
     volumes:
       - ./backend/server:/app/backend/server
       - ./backend/pkg:/app/backend/pkg
+      - ./migrations:/app/migrations:ro
       - ./backend/server/conf/config.yml:/opt/app/conf/config.yml:ro
       - attachments_data:/data/attachments
     depends_on:
@@ -110,6 +101,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      backend-server:
+        condition: service_started
 
   frontend:
     build:

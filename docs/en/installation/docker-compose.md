@@ -25,7 +25,7 @@ Docker Compose starts:
 | backend-sync | http://localhost:8083 | Git sync worker |
 | postgres | localhost:5432 | Database |
 
-Database migrations are applied automatically on first PostgreSQL startup.
+Database migrations are applied automatically when **backend-server** starts (scans the `migrations/` folder).
 
 ## Step 3. Verify
 

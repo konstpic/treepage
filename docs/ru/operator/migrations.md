@@ -19,22 +19,47 @@ SQL-миграции находятся в `migrations/`.
 | `012_production_hardening.up.sql` | Pending changes, audit, OIDC Redis |
 | `013_team_kb.up.sql` | Избранное, недавние, уведомления, вложения |
 | `014_enterprise_kb.up.sql` | ACL страниц, комментарии, workflow, аналитика, RAG |
+| `015_multilingual_search.up.sql` | Multilingual FTS (RU + EN) |
+| `016_rag_enhancements.up.sql` | Embeddings, feedback, learned synonyms |
 
 > Миграция `004` отсутствует (пропущена в нумерации).
 
+## Автоматическое применение
+
+Все файлы `migrations/*_up.sql` применяются **автоматически** при старте `backend-server`:
+
+1. Сканируется папка `migrations/` (env `MIGRATIONS_DIR`, по умолчанию `/app/migrations` в Docker)
+2. Файлы сортируются по имени (`001_…`, `002_…`, …, `100_…`)
+3. Неприменённые версии записываются в таблицу `schema_migrations`
+
+**Новая миграция** = положить файл `017_*.up.sql` в `migrations/` и перезапустить server. Редактировать `docker-compose.yml` не нужно.
+
+Docker Compose монтирует `./migrations:/app/migrations:ro` в `backend-server`.
+
 ## Docker Compose
 
-Миграции применяются автоматически при первом запуске PostgreSQL через `docker-entrypoint-initdb.d/`.
+PostgreSQL больше **не** монтирует миграции по одной. Схема поднимается через migrator в `backend-server` (после `postgres` healthy).
 
-## Ручное применение
+`backend-auth` и `backend-sync` стартуют после `backend-server`, чтобы миграции успели примениться.
+
+## Ручное применение (без Docker)
 
 ```bash
 export PGPASSWORD=<password>
+export MIGRATIONS_DIR=migrations
+# через backend-server при старте — предпочтительно
 
-for f in migrations/00*_up.sql migrations/01*_up.sql; do
+# или вручную одной командой (legacy):
+for f in migrations/*_up.sql; do
   echo "Applying $f..."
   psql -h <host> -U treepage -d treepage -f "$f"
 done
+```
+
+## Проверка
+
+```sql
+SELECT version, applied_at FROM schema_migrations ORDER BY version;
 ```
 
 ## Kubernetes

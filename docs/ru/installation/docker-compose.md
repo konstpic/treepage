@@ -25,7 +25,7 @@ Docker Compose поднимает:
 | backend-sync | http://localhost:8083 | Git sync worker |
 | postgres | localhost:5432 | База данных |
 
-Миграции БД применяются автоматически при первом запуске PostgreSQL.
+Миграции БД применяются автоматически при старте **backend-server** (сканирует папку `migrations/`).
 
 ## Шаг 3. Проверка
 

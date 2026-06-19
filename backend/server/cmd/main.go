@@ -17,6 +17,7 @@ import (
 	pkgjwt "github.com/konstpic/treepage/backend/pkg/jwt"
 	"github.com/konstpic/treepage/backend/pkg/logging"
 	"github.com/konstpic/treepage/backend/pkg/middleware"
+	"github.com/konstpic/treepage/backend/pkg/migrate"
 	"github.com/konstpic/treepage/backend/pkg/models"
 	"github.com/konstpic/treepage/backend/server/internal/handler"
 	"github.com/konstpic/treepage/backend/server/internal/llm"
@@ -59,6 +60,13 @@ func main() {
 	db, err := database.Connect(cfg.Postgres, logger.Info)
 	if err != nil {
 		log.Fatal("database connection failed", zap.Error(err))
+	}
+
+	migrationsDir := migrate.ResolveDir()
+	if applied, err := migrate.Run(context.Background(), db, migrationsDir); err != nil {
+		log.Fatal("database migrations failed", zap.String("dir", migrationsDir), zap.Error(err))
+	} else if len(applied) > 0 {
+		log.Info("database migrations applied", zap.Strings("versions", applied))
 	}
 
 	jwtMgr, err := pkgjwt.NewManager(cfg.JWT)

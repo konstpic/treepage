@@ -19,22 +19,46 @@ SQL migrations are in `migrations/`.
 | `012_production_hardening.up.sql` | Pending changes, audit, OIDC Redis |
 | `013_team_kb.up.sql` | Favorites, recent views, notifications, attachments |
 | `014_enterprise_kb.up.sql` | Page ACL, comments, workflow, analytics, RAG chunks |
+| `015_multilingual_search.up.sql` | Multilingual FTS (RU + EN) |
+| `016_rag_enhancements.up.sql` | Embeddings, feedback, learned synonyms |
 
 > Migration `004` is missing (skipped in numbering).
 
+## Automatic application
+
+All `migrations/*_up.sql` files are applied **automatically** when `backend-server` starts:
+
+1. Scans `migrations/` (`MIGRATIONS_DIR`, default `/app/migrations` in Docker)
+2. Sorts files by name (`001_…` through `100_…`)
+3. Skips versions already recorded in `schema_migrations`
+
+**New migration** = add `017_*.up.sql` to `migrations/` and restart server. No `docker-compose.yml` edits.
+
+Docker Compose mounts `./migrations:/app/migrations:ro` into `backend-server`.
+
 ## Docker Compose
 
-Migrations are applied automatically on first PostgreSQL startup via `docker-entrypoint-initdb.d/`.
+PostgreSQL no longer mounts migrations one-by-one. Schema is applied by the migrator in `backend-server` after Postgres is healthy.
+
+`backend-auth` and `backend-sync` start after `backend-server` so migrations finish first.
 
 ## Manual application
 
 ```bash
 export PGPASSWORD=<password>
+# Prefer starting backend-server (runs migrator automatically)
 
-for f in migrations/00*_up.sql migrations/01*_up.sql; do
+# Legacy loop:
+for f in migrations/*_up.sql; do
   echo "Applying $f..."
   psql -h <host> -U treepage -d treepage -f "$f"
 done
+```
+
+## Verify
+
+```sql
+SELECT version, applied_at FROM schema_migrations ORDER BY version;
 ```
 
 ## Kubernetes
