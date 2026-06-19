@@ -16,6 +16,7 @@ import (
 	pkgjwt "github.com/konstpic/treepage/backend/pkg/jwt"
 	"github.com/konstpic/treepage/backend/pkg/logging"
 	"github.com/konstpic/treepage/backend/pkg/middleware"
+	"github.com/konstpic/treepage/backend/pkg/models"
 	"github.com/konstpic/treepage/backend/server/internal/handler"
 	"github.com/konstpic/treepage/backend/server/internal/llm"
 	"github.com/konstpic/treepage/backend/server/internal/rag"
@@ -96,6 +97,25 @@ func main() {
 	}
 	syncClient := syncclient.New(syncURL)
 	ragSvc := rag.New(db, llmClient, spaces, pageACL)
+
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+		defer cancel()
+		var chunkCount int64
+		if err := db.WithContext(ctx).Model(&models.DocumentChunk{}).Count(&chunkCount).Error; err != nil {
+			log.Warn("rag chunk count check failed", zap.Error(err))
+			return
+		}
+		if chunkCount > 0 {
+			return
+		}
+		n, err := ragSvc.ReindexAllPublished(ctx)
+		if err != nil {
+			log.Warn("rag backfill failed", zap.Int("indexed", n), zap.Error(err))
+			return
+		}
+		log.Info("rag backfill completed", zap.Int("documents", n))
+	}()
 
 	welcomeCfg := service.LoadWelcomeBootstrapConfig()
 	if welcomeRepo, created, err := service.BootstrapWelcomeSpace(context.Background(), db, welcomeCfg, log); err != nil {

@@ -2,13 +2,12 @@ package rag
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/konstpic/treepage/backend/pkg/models"
+	"github.com/konstpic/treepage/backend/pkg/ragindex"
 	"github.com/konstpic/treepage/backend/server/internal/llm"
 	"github.com/konstpic/treepage/backend/server/internal/service"
 	"gorm.io/gorm"
@@ -40,20 +39,20 @@ type Answer struct {
 }
 
 func (s *Service) ReindexDocument(ctx context.Context, doc *models.Document) error {
-	hash := contentHash(doc.Content)
-	s.db.WithContext(ctx).Where("document_id = ?", doc.ID).Delete(&models.DocumentChunk{})
-	chunks := splitChunks(doc.Content, 1200)
-	for i, chunk := range chunks {
-		if strings.TrimSpace(chunk) == "" {
-			continue
-		}
-		if err := s.db.WithContext(ctx).Create(&models.DocumentChunk{
-			DocumentID: doc.ID, ChunkIndex: i, Content: chunk, ContentHash: hash,
-		}).Error; err != nil {
-			return err
+	return ragindex.IndexDocument(ctx, s.db, doc)
+}
+
+func (s *Service) ReindexAllPublished(ctx context.Context) (int, error) {
+	var docs []models.Document
+	if err := s.db.WithContext(ctx).Where("is_published = ?", true).Find(&docs).Error; err != nil {
+		return 0, err
+	}
+	for i := range docs {
+		if err := ragindex.IndexDocument(ctx, s.db, &docs[i]); err != nil {
+			return i, err
 		}
 	}
-	return nil
+	return len(docs), nil
 }
 
 func (s *Service) Ask(ctx context.Context, question, userID string, globalRoles []string, limit int) (*Answer, error) {
@@ -149,36 +148,4 @@ Documentation:
 		return nil, err
 	}
 	return &Answer{Answer: strings.TrimSpace(answer), Sources: sources}, nil
-}
-
-func splitChunks(content string, maxLen int) []string {
-	paras := strings.Split(content, "\n\n")
-	var chunks []string
-	var buf strings.Builder
-	for _, p := range paras {
-		p = strings.TrimSpace(p)
-		if p == "" {
-			continue
-		}
-		if buf.Len()+len(p)+2 > maxLen && buf.Len() > 0 {
-			chunks = append(chunks, buf.String())
-			buf.Reset()
-		}
-		if buf.Len() > 0 {
-			buf.WriteString("\n\n")
-		}
-		buf.WriteString(p)
-	}
-	if buf.Len() > 0 {
-		chunks = append(chunks, buf.String())
-	}
-	if len(chunks) == 0 && strings.TrimSpace(content) != "" {
-		return []string{content}
-	}
-	return chunks
-}
-
-func contentHash(content string) string {
-	sum := sha256.Sum256([]byte(content))
-	return hex.EncodeToString(sum[:])
 }

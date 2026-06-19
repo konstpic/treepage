@@ -14,6 +14,7 @@ import (
 
 	"github.com/konstpic/treepage/backend/pkg/contenthash"
 	"github.com/konstpic/treepage/backend/pkg/models"
+	"github.com/konstpic/treepage/backend/pkg/ragindex"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
@@ -127,7 +128,13 @@ func (s *Syncer) upsertDocument(ctx context.Context, repo models.Repository, rel
 			SyncedContentHash: gitHash, HasPendingChanges: false, LastSyncedAt: &now,
 			CommitSHA: commitSHA,
 		}
-		return true, s.db.WithContext(ctx).Create(&doc).Error
+		if err := s.db.WithContext(ctx).Create(&doc).Error; err != nil {
+			return true, err
+		}
+		if err := ragindex.IndexDocument(ctx, s.db, &doc); err != nil {
+			s.logger.Warn("rag index failed after create", zap.String("slug", slug), zap.Error(err))
+		}
+		return true, nil
 	}
 	if err != nil {
 		return false, err
@@ -148,7 +155,13 @@ func (s *Syncer) upsertDocument(ctx context.Context, repo models.Repository, rel
 	if commitSHA != "" {
 		doc.CommitSHA = commitSHA
 	}
-	return true, s.db.WithContext(ctx).Save(&doc).Error
+	if err := s.db.WithContext(ctx).Save(&doc).Error; err != nil {
+		return true, err
+	}
+	if err := ragindex.IndexDocument(ctx, s.db, &doc); err != nil {
+		s.logger.Warn("rag index failed after update", zap.String("slug", slug), zap.Error(err))
+	}
+	return true, nil
 }
 
 func (s *Syncer) removeOrphanDocuments(ctx context.Context, repo models.Repository, seen map[string]struct{}) {
