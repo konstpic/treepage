@@ -1,0 +1,20 @@
+# Umbrella values — passed to subcharts as backend.* and frontend.*
+# Install: helm dependency update deploy/helm/treepage && helm upgrade --install treepage deploy/helm/treepage -f deploy/helm/treepage/values.yaml
+
+backend:
+  ingress:
+    enabled: true
+    host: treepage.example.com
+  secret:
+    create: true
+    dbPassword: changeme
+    jwtSecret: changeme-generate-a-long-random-string
+  postgresql:
+    host: postgres.example.com
+
+frontend:
+  ingress:
+    enabled: true
+    host: treepage.example.com
+  backend:
+    releaseName: treepage-backend

@@ -1,0 +1,33 @@
+server:
+  host: 0.0.0.0
+  port: 8081
+
+postgres:
+  host: postgres
+  port: 5432
+  database: treepage
+  user: treepage
+  ssl_mode: disable
+
+oidc:
+  enabled: true
+  issuer_url: http://keycloak:8080/realms/treepage
+  client_id: treepage
+  redirect_url: http://localhost:8081/auth/callback
+  scopes: openid profile email
+
+jwt:
+  access_ttl: 15m
+  refresh_ttl: 168h
+  issuer: treepage-auth
+  audience: treepage
+
+logging:
+  level: info
+
+security:
+  rate_limit_rps: 100
+  allowed_origins: http://localhost:5173
+
+frontend:
+  url: http://localhost:5173

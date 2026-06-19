@@ -1,0 +1,18 @@
+{{- if and .Values.sync.enabled .Values.sync.persistence.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "treepage-backend.fullname" . }}-sync-repos
+  labels:
+    {{- include "treepage-backend.labels" . | nindent 4 }}
+    app.kubernetes.io/component: sync
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.sync.persistence.size }}
+  {{- if .Values.sync.persistence.storageClass }}
+  storageClassName: {{ .Values.sync.persistence.storageClass | quote }}
+  {{- end }}
+{{- end }}

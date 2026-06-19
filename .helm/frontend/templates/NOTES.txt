@@ -1,0 +1,16 @@
+TreePage frontend has been installed.
+
+Release: {{ .Release.Name }}
+URL: {{ include "treepage-frontend.publicUrl" . }}
+
+Runtime config:
+  apiUrl:  {{ include "treepage-frontend.apiUrl" . }}
+  authUrl: {{ include "treepage-frontend.authUrl" . }}
+
+{{- if .Values.frontend.proxy.enabled }}
+Nginx proxies /api/* to backend services:
+  auth:   {{ include "treepage-frontend.backendAuthService" . }}:{{ .Values.backend.authPort }}
+  server: {{ include "treepage-frontend.backendServerService" . }}:{{ .Values.backend.serverPort }}
+{{- else }}
+Ensure backend ingress exposes /api and /api/auth on the same host, or enable frontend.proxy.
+{{- end }}

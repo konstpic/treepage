@@ -1,0 +1,18 @@
+{{- if .Values.sync.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "treepage-backend.fullname" . }}-sync
+  labels:
+    {{- include "treepage-backend.labels" . | nindent 4 }}
+    app.kubernetes.io/component: sync
+spec:
+  type: {{ .Values.sync.service.type }}
+  ports:
+    - port: {{ .Values.sync.service.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "treepage-backend.componentSelectorLabels" (dict "component" "sync" "Values" .Values "Chart" .Chart "Release" .Release) | nindent 4 }}
+{{- end }}

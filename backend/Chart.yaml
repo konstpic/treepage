@@ -1,0 +1,13 @@
+apiVersion: v2
+name: treepage-backend
+description: TreePage backend services (auth, server, sync) — open-source Helm chart
+type: application
+version: 0.2.0
+appVersion: "0.1.0"
+kubeVersion: ">=1.24.0-0"
+keywords:
+  - treepage
+  - documentation
+  - git-sync
+maintainers:
+  - name: TreePage contributors

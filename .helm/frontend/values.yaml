@@ -1,0 +1,72 @@
+# TreePage frontend Helm values.
+# Replaces the corporate react-spa/secret subcharts.
+#
+# Legacy mapping:
+#   global.registry_url     → global.imageRegistry
+#   global.settings.relations → global.frontendUrl / ingress.host
+#   configs.config.json     → auto-generated in ConfigMap
+
+global:
+  imageRegistry: ""
+  imagePullSecrets: []
+  appVersion: latest
+  labels: {}
+  frontendUrl: ""
+
+nameOverride: ""
+fullnameOverride: ""
+
+# Backend service names when frontend.proxy.enabled=true (single-ingress mode)
+backend:
+  releaseName: treepage-backend
+  authService: ""
+  serverService: ""
+  authPort: 80
+  serverPort: 80
+
+ingress:
+  enabled: true
+  className: nginx
+  host: treepage.example.com
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: 10m
+  tls:
+    enabled: true
+    secretName: ""
+
+frontend:
+  replicas: 2
+  image:
+    repository: treepage/frontend
+    tag: ""
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 80
+    containerPort: 8080
+  # Proxy /api to backend services via nginx (alternative to split ingress)
+  proxy:
+    enabled: false
+  resources:
+    limits:
+      cpu: 200m
+      memory: 256Mi
+    requests:
+      cpu: 50m
+      memory: 64Mi
+  readinessProbe:
+    enabled: true
+    path: /readiness
+    port: 8080
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    timeoutSeconds: 3
+    failureThreshold: 3
+  livenessProbe:
+    enabled: true
+    path: /liveness
+    port: 8080
+    initialDelaySeconds: 10
+    periodSeconds: 30
+    timeoutSeconds: 3
+    failureThreshold: 3

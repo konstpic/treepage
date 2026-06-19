@@ -1,0 +1,38 @@
+{{- if .Values.auth.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "treepage-backend.fullname" . }}-auth
+  labels:
+    {{- include "treepage-backend.labels" . | nindent 4 }}
+    app.kubernetes.io/component: auth
+data:
+  config.yml: |
+    server:
+      host: 0.0.0.0
+      port: {{ .Values.auth.service.containerPort }}
+    postgres:
+      host: {{ include "treepage-backend.postgresHost" . | quote }}
+      port: {{ .Values.postgresql.port }}
+      database: {{ .Values.postgresql.database | quote }}
+      user: {{ .Values.postgresql.user | quote }}
+      ssl_mode: {{ .Values.postgresql.sslMode | quote }}
+    oidc:
+      enabled: {{ .Values.auth.oidc.enabled }}
+      issuer_url: {{ .Values.auth.oidc.issuerUrl | quote }}
+      client_id: {{ .Values.auth.oidc.clientId | quote }}
+      redirect_url: {{ printf "%s/api/auth/callback" (include "treepage-backend.frontendUrl" .) | quote }}
+      scopes: {{ .Values.auth.oidc.scopes | quote }}
+    jwt:
+      access_ttl: {{ .Values.auth.jwt.accessTtl | quote }}
+      refresh_ttl: {{ .Values.auth.jwt.refreshTtl | quote }}
+      issuer: {{ .Values.auth.jwt.issuer | quote }}
+      audience: {{ .Values.auth.jwt.audience | quote }}
+    logging:
+      level: {{ .Values.auth.logging.level | quote }}
+    security:
+      rate_limit_rps: {{ .Values.auth.security.rateLimitRps }}
+      allowed_origins: {{ include "treepage-backend.frontendUrl" . | quote }}
+    frontend:
+      url: {{ include "treepage-backend.frontendUrl" . | quote }}
+{{- end }}

@@ -1,0 +1,26 @@
+server:
+  host: 0.0.0.0
+  port: 8082
+
+postgres:
+  host: postgres
+  port: 5432
+  database: treepage
+  user: treepage
+  ssl_mode: disable
+
+jwt:
+  issuer: treepage-auth
+  audience: treepage
+
+logging:
+  level: info
+
+security:
+  rate_limit_rps: 200
+  allowed_origins: http://localhost:5173
+  enable_audit_log: true
+
+search:
+  default_limit: 20
+  max_limit: 100

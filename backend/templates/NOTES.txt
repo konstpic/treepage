@@ -1,0 +1,27 @@
+TreePage backend has been installed.
+
+Release: {{ .Release.Name }}
+Namespace: {{ .Release.Namespace }}
+
+Services:
+{{- if .Values.auth.enabled }}
+  Auth:   {{ include "treepage-backend.fullname" . }}-auth:{{ .Values.auth.service.port }}
+{{- end }}
+{{- if .Values.server.enabled }}
+  Server: {{ include "treepage-backend.fullname" . }}-server:{{ .Values.server.service.port }}
+{{- end }}
+{{- if .Values.sync.enabled }}
+  Sync:   {{ include "treepage-backend.fullname" . }}-sync:{{ .Values.sync.service.port }} (internal)
+{{- end }}
+
+{{- if .Values.ingress.enabled }}
+Public API URL: {{ include "treepage-backend.frontendUrl" . }}/api
+Auth URL:       {{ include "treepage-backend.frontendUrl" . }}/api/auth
+{{- end }}
+
+Install the frontend chart with the same ingress.host for the UI:
+  helm upgrade --install treepage-frontend .helm/frontend \
+    --set ingress.host={{ .Values.ingress.host | quote }} \
+    --set global.frontendUrl={{ include "treepage-backend.frontendUrl" . | quote }}
+
+Remember to replace default secrets in production (secret.create=true uses values from the chart).

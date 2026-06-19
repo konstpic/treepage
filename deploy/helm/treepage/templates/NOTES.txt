@@ -1,0 +1,7 @@
+TreePage umbrella release installed.
+
+Subcharts:
+  backend  — auth, server, sync
+  frontend — React UI
+
+See docs/helm-deployment.md for post-install steps.

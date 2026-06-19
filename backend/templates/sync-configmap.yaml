@@ -1,0 +1,27 @@
+{{- if .Values.sync.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "treepage-backend.fullname" . }}-sync
+  labels:
+    {{- include "treepage-backend.labels" . | nindent 4 }}
+    app.kubernetes.io/component: sync
+data:
+  config.yml: |
+    server:
+      host: 0.0.0.0
+      port: {{ .Values.sync.service.containerPort }}
+    postgres:
+      host: {{ include "treepage-backend.postgresHost" . | quote }}
+      port: {{ .Values.postgresql.port }}
+      database: {{ .Values.postgresql.database | quote }}
+      user: {{ .Values.postgresql.user | quote }}
+      ssl_mode: {{ .Values.postgresql.sslMode | quote }}
+    git:
+      sync_interval: {{ .Values.sync.git.syncInterval | quote }}
+      work_dir: {{ .Values.sync.git.workDir | quote }}
+    logging:
+      level: {{ .Values.sync.logging.level | quote }}
+    security:
+      rate_limit_rps: {{ .Values.sync.security.rateLimitRps }}
+{{- end }}

@@ -1,0 +1,636 @@
+openapi: 3.1.0
+info:
+  title: TreePage API
+  version: 0.1.0
+  description: Documentation platform REST API
+
+servers:
+  - url: http://localhost:8081
+    description: Auth service (dev)
+  - url: http://localhost:8082
+    description: Server API (dev)
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    TokenPair:
+      type: object
+      properties:
+        access_token:
+          type: string
+        refresh_token:
+          type: string
+        expires_at:
+          type: string
+          format: date-time
+
+    UserProfile:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+        display_name:
+          type: string
+        avatar_url:
+          type: string
+        roles:
+          type: array
+          items:
+            type: string
+
+    Space:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        slug:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        is_public:
+          type: boolean
+
+    Document:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        space_id:
+          type: string
+          format: uuid
+        slug:
+          type: string
+        title:
+          type: string
+        path:
+          type: string
+        content:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        author_name:
+          type: string
+        updated_at:
+          type: string
+          format: date-time
+
+    SearchResult:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        slug:
+          type: string
+        snippet:
+          type: string
+        rank:
+          type: number
+
+paths:
+  /api/auth/login:
+    get:
+      tags: [Auth]
+      summary: Initiate OIDC login
+      responses:
+        "302":
+          description: Redirect to OIDC provider
+
+  /api/auth/callback:
+    get:
+      tags: [Auth]
+      summary: OIDC callback
+      parameters:
+        - name: code
+          in: query
+          schema:
+            type: string
+        - name: state
+          in: query
+          schema:
+            type: string
+      responses:
+        "302":
+          description: Redirect to frontend with tokens
+
+  /api/auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Refresh access token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refresh_token]
+              properties:
+                refresh_token:
+                  type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TokenPair"
+
+  /api/auth/logout:
+    post:
+      tags: [Auth]
+      summary: Revoke refresh token
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                refresh_token:
+                  type: string
+      responses:
+        "200":
+          description: Logged out
+
+  /api/auth/me:
+    get:
+      tags: [Auth]
+      summary: Current user profile
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+
+  /api/public/branding:
+    get:
+      tags: [Public]
+      summary: Public branding config
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  project_name:
+                    type: string
+                  project_code:
+                    type: string
+
+  /api/public/ui-theme:
+    get:
+      tags: [Public]
+      summary: Public UI theme (no auth)
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ui_theme:
+                    type: string
+                    enum: [coral_night, fox_white, light, dark]
+
+  /api/public/spaces:
+    get:
+      tags: [Public]
+      summary: List public spaces (no auth)
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Space"
+
+  /api/spaces:
+    get:
+      tags: [Spaces]
+      summary: List accessible spaces
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Space"
+    post:
+      tags: [Spaces]
+      summary: Create space
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [slug, name]
+              properties:
+                slug:
+                  type: string
+                name:
+                  type: string
+                description:
+                  type: string
+                is_public:
+                  type: boolean
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Space"
+
+  /api/spaces/{slug}:
+    get:
+      tags: [Spaces]
+      summary: Get space by slug
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Space"
+
+  /api/spaces/{slug}/documents:
+    get:
+      tags: [Documents]
+      summary: List documents in space
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Document"
+
+  /api/spaces/{slug}/documents/{docSlug}:
+    get:
+      tags: [Documents]
+      summary: Get document
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: docSlug
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Document"
+
+  /api/search:
+    get:
+      tags: [Search]
+      summary: Full-text search
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: q
+          in: query
+          schema:
+            type: string
+        - name: space_id
+          in: query
+          schema:
+            type: string
+        - name: author
+          in: query
+          schema:
+            type: string
+        - name: tags
+          in: query
+          schema:
+            type: string
+          description: Comma-separated tags
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/SearchResult"
+                  total:
+                    type: integer
+
+  /api/admin/system-settings:
+    get:
+      tags: [Admin]
+      summary: Get platform system settings
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Auth, git, platform settings, and ui_theme
+    put:
+      tags: [Admin]
+      summary: Update system settings (super_admin)
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Updated settings
+
+  /api/admin/system-settings/ui-theme:
+    put:
+      tags: [Admin]
+      summary: Update global UI theme (super_admin)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ui_theme]
+              properties:
+                ui_theme:
+                  type: string
+                  enum: [coral_night, fox_white, light, dark]
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ui_theme:
+                    type: string
+
+  /api/admin/repositories:
+    get:
+      tags: [Admin]
+      summary: List all repositories with space info
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Repository list
+    post:
+      tags: [Admin]
+      summary: Create repository and bind to space
+      security:
+        - bearerAuth: []
+      responses:
+        "201":
+          description: Created
+
+  /api/admin/repositories/{id}:
+    get:
+      tags: [Admin]
+      summary: Get repository with latest sync job
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Repository detail
+    put:
+      tags: [Admin]
+      summary: Update repository
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Updated
+    delete:
+      tags: [Admin]
+      summary: Delete repository (super_admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Deleted
+
+  /api/admin/spaces/{id}/bind-repo:
+    post:
+      tags: [Admin]
+      summary: Assign repository to a space
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [repository_id]
+              properties:
+                repository_id:
+                  type: string
+                  format: uuid
+      responses:
+        "200":
+          description: Bound
+
+  /api/admin/sync/{repoId}:
+    post:
+      tags: [Admin]
+      summary: Trigger manual repository sync via sync service
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: repoId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Sync triggered
+
+  /api/admin/oidc-providers:
+    get:
+      tags: [Admin]
+      summary: List OIDC providers (super_admin)
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Provider list
+    post:
+      tags: [Admin]
+      summary: Create OIDC provider (super_admin)
+      security:
+        - bearerAuth: []
+      responses:
+        "201":
+          description: Created
+
+  /api/admin/users:
+    get:
+      tags: [Admin]
+      summary: List users (super_admin)
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: User list
+
+  /api/admin/spaces:
+    get:
+      tags: [Admin]
+      summary: List all spaces (admin)
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Space list
+
+  /api/admin/spaces/{id}:
+    patch:
+      tags: [Admin]
+      summary: Update space (visibility, name)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                is_public:
+                  type: boolean
+      responses:
+        "200":
+          description: Updated space
+
+  /api/sync/repositories/{id}:
+    post:
+      tags: [Sync]
+      summary: Trigger manual repository sync
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Sync completed
+
+  /liveness:
+    get:
+      summary: Liveness probe
+      responses:
+        "200":
+          description: Alive
+
+  /readiness:
+    get:
+      summary: Readiness probe
+      responses:
+        "200":
+          description: Ready
+
+  /metrics:
+    get:
+      summary: Prometheus metrics
+      responses:
+        "200":
+          description: Metrics

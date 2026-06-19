@@ -1,0 +1,119 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: treepage
+      POSTGRES_PASSWORD: treepage
+      POSTGRES_DB: treepage
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./migrations/001_initial_schema.up.sql:/docker-entrypoint-initdb.d/001_schema.sql:ro
+      - ./migrations/002_local_auth.up.sql:/docker-entrypoint-initdb.d/002_local_auth.sql:ro
+      - ./migrations/003_system_settings.up.sql:/docker-entrypoint-initdb.d/003_system_settings.sql:ro
+      - ./migrations/005_ui_theme.up.sql:/docker-entrypoint-initdb.d/004_ui_theme.sql:ro
+      - ./migrations/006_books.up.sql:/docker-entrypoint-initdb.d/005_books.sql:ro
+      - ./migrations/007_ui_language.up.sql:/docker-entrypoint-initdb.d/006_ui_language.sql:ro
+      - ./migrations/008_document_translations.up.sql:/docker-entrypoint-initdb.d/007_document_translations.sql:ro
+      - ./migrations/009_book_translations.up.sql:/docker-entrypoint-initdb.d/008_book_translations.sql:ro
+      - ./migrations/010_space_groups.up.sql:/docker-entrypoint-initdb.d/009_space_groups.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U treepage"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    profiles: ["cache"]
+
+  backend-auth:
+    build:
+      context: .
+      dockerfile: deploy/docker/Dockerfile.auth.dev
+    ports:
+      - "8081:8081"
+    environment:
+      CONFIG_PATH: /opt/app/conf/config.yml
+      DEV_MODE: "true"
+      ENV: dev
+      DB_PASSWORD: treepage
+      JWT_SECRET: dev-jwt-secret-change-in-production
+      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-}
+      CSRF_SECRET: dev-csrf-secret
+    volumes:
+      - ./backend/auth:/app/backend/auth
+      - ./backend/pkg:/app/backend/pkg
+      - ./backend/auth/conf/config.yml:/opt/app/conf/config.yml:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  backend-server:
+    build:
+      context: .
+      dockerfile: deploy/docker/Dockerfile.server.dev
+    ports:
+      - "8082:8082"
+    environment:
+      CONFIG_PATH: /opt/app/conf/config.yml
+      DB_PASSWORD: treepage
+      JWT_SECRET: dev-jwt-secret-change-in-production
+      SYNC_SERVICE_URL: http://backend-sync:8083
+      # Optional: AI book enhancement (OpenAI-compatible API)
+      # LLM_ENABLED: ${LLM_ENABLED:-false}
+      # LLM_API_URL: ${LLM_API_URL:-https://api.openai.com/v1}
+      # LLM_API_KEY: ${LLM_API_KEY:-}
+      # LLM_MODEL: ${LLM_MODEL:-gpt-4o-mini}
+    volumes:
+      - ./backend/server:/app/backend/server
+      - ./backend/pkg:/app/backend/pkg
+      - ./backend/server/conf/config.yml:/opt/app/conf/config.yml:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  backend-sync:
+    build:
+      context: .
+      dockerfile: deploy/docker/Dockerfile.sync.dev
+    ports:
+      - "8083:8083"
+    environment:
+      CONFIG_PATH: /opt/app/conf/config.yml
+      DB_PASSWORD: treepage
+      GIT_ACCESS_TOKEN: ${GIT_ACCESS_TOKEN:-}
+      GIT_WEBHOOK_SECRET: ${GIT_WEBHOOK_SECRET:-dev-webhook-secret}
+    volumes:
+      - ./backend/sync:/app/backend/sync
+      - ./backend/pkg:/app/backend/pkg
+      - ./backend/sync/conf/config.yml:/opt/app/conf/config.yml:ro
+      - sync_repos:/tmp/treepage-repos
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    ports:
+      - "5173:5173"
+    environment:
+      # Same-origin: browser calls :5173/api/*, Vite proxies to backends (works on localhost and LAN IP)
+      VITE_USE_PROXY: "true"
+      VITE_PROXY_AUTH: http://backend-auth:8081
+      VITE_PROXY_API: http://backend-server:8082
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend-auth
+      - backend-server
+
+volumes:
+  postgres_data:
+  sync_repos:

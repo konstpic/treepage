@@ -1,0 +1,32 @@
+{{- if .Values.server.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "treepage-backend.fullname" . }}-server
+  labels:
+    {{- include "treepage-backend.labels" . | nindent 4 }}
+    app.kubernetes.io/component: server
+data:
+  config.yml: |
+    server:
+      host: 0.0.0.0
+      port: {{ .Values.server.service.containerPort }}
+    postgres:
+      host: {{ include "treepage-backend.postgresHost" . | quote }}
+      port: {{ .Values.postgresql.port }}
+      database: {{ .Values.postgresql.database | quote }}
+      user: {{ .Values.postgresql.user | quote }}
+      ssl_mode: {{ .Values.postgresql.sslMode | quote }}
+    jwt:
+      issuer: {{ .Values.server.jwt.issuer | quote }}
+      audience: {{ .Values.server.jwt.audience | quote }}
+    logging:
+      level: {{ .Values.server.logging.level | quote }}
+    security:
+      rate_limit_rps: {{ .Values.server.security.rateLimitRps }}
+      allowed_origins: {{ include "treepage-backend.frontendUrl" . | quote }}
+      enable_audit_log: {{ .Values.server.security.enableAuditLog }}
+    search:
+      default_limit: {{ .Values.server.search.defaultLimit }}
+      max_limit: {{ .Values.server.search.maxLimit }}
+{{- end }}

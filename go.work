@@ -1,0 +1,8 @@
+go 1.22
+
+use (
+	./backend/auth
+	./backend/server
+	./backend/sync
+	./backend/pkg
+)

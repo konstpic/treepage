@@ -1,0 +1,18 @@
+{{- if .Values.server.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "treepage-backend.fullname" . }}-server
+  labels:
+    {{- include "treepage-backend.labels" . | nindent 4 }}
+    app.kubernetes.io/component: server
+spec:
+  type: {{ .Values.server.service.type }}
+  ports:
+    - port: {{ .Values.server.service.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "treepage-backend.componentSelectorLabels" (dict "component" "server" "Values" .Values "Chart" .Chart "Release" .Release) | nindent 4 }}
+{{- end }}

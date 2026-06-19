@@ -1,0 +1,7 @@
+charts/
+Chart.lock
+auth/
+server/
+sync/
+pkg/
+tmp/

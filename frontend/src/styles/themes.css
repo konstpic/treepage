@@ -1,0 +1,246 @@
+/**
+ * TreePage design tokens — one block per theme.
+ * Applied via: document.documentElement.dataset.theme = "<id>"
+ */
+
+/* ─── Coral Night (default — preserved pixel-perfect) ─── */
+[data-theme="coral_night"] {
+  --bg: 7 7 15;
+  --bg-header: 7 7 15;
+  --bg-gradient-a: 139 92 246;
+  --bg-gradient-a-opacity: 0.12;
+  --bg-gradient-b: 6 182 212;
+  --bg-gradient-b-opacity: 0.06;
+
+  --fg: 241 245 249;
+  --fg-secondary: 226 232 240;
+  --muted: 148 163 184;
+  --subtle: 100 116 139;
+
+  --primary: 139 92 246;
+  --primary-hover: 167 139 250;
+  --primary-dark: 109 40 217;
+  --primary-soft: 139 92 246;
+  --primary-soft-opacity: 0.1;
+  --accent: 34 211 238;
+
+  --border: 255 255 255;
+  --border-opacity: 0.07;
+  --border-subtle-opacity: 0.04;
+
+  --surface: 255 255 255;
+  --surface-opacity: 0.03;
+  --surface-hover-opacity: 0.05;
+  --surface-elevated-opacity: 0.06;
+
+  --glass-ring: 139 92 246;
+  --glass-ring-opacity: 0.04;
+  --glass-shadow: 0 0 0 1px rgba(139, 92, 246, 0.04), 0 4px 32px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  --glass-hover-shadow: 0 0 0 1px rgba(139, 92, 246, 0.12), 0 8px 40px rgba(139, 92, 246, 0.08),
+    0 4px 32px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+
+  --scrollbar: 139 92 246;
+  --scrollbar-opacity: 0.25;
+  --selection-bg-opacity: 0.3;
+
+  --success: 52 211 153;
+  --danger: 251 113 133;
+  --warning: 251 191 36;
+
+  --gradient-text: linear-gradient(to right, rgb(167 139 250), rgb(192 132 252), rgb(34 211 238));
+  --btn-primary-gradient: linear-gradient(to right, rgb(124 58 237), rgb(139 92 246));
+  --btn-primary-shadow: 0 10px 15px -3px rgba(139, 92, 246, 0.2);
+  --logo-gradient: linear-gradient(to bottom right, rgb(139 92 246), rgb(109 40 217));
+}
+
+/* ─── Fox White (GitLab-inspired — vibrant fox orange + neutral gray UI) ─── */
+[data-theme="fox_white"] {
+  /* GitLab color.orange scale (reference) */
+  --orange-50: 253 241 221;
+  --orange-100: 245 217 168;
+  --orange-200: 233 190 116;
+  --orange-300: 217 149 48;
+  --orange-400: 193 125 16;
+  --orange-500: 171 97 0;
+  --orange-600: 153 87 21;
+  --orange-700: 137 75 22;
+  --orange-800: 105 60 20;
+  --orange-900: 83 46 22;
+  --orange-950: 56 35 21;
+  /* GitLab fox brand */
+  --fox-500: 252 109 38;
+  --fox-600: 226 67 41;
+
+  --bg: 255 255 255;
+  --bg-header: 255 255 255;
+  --bg-gradient-a: 252 109 38;
+  --bg-gradient-a-opacity: 0.05;
+  --bg-gradient-b: 240 242 245;
+  --bg-gradient-b-opacity: 0.35;
+
+  /* Neutral text — no brown tint in body copy */
+  --fg: 48 48 48;
+  --fg-secondary: 82 82 82;
+  --muted: 106 106 106;
+  --subtle: 135 135 135;
+
+  /* Vibrant orange accents (fox #fc6d26), not brown-orange-500/700 */
+  --primary: 252 109 38;
+  --primary-hover: 226 67 41;
+  --primary-dark: 226 67 41;
+  --primary-soft: 252 109 38;
+  --primary-soft-opacity: 0.1;
+  --accent: 217 149 48;
+
+  --border: 219 219 219;
+  --border-opacity: 1;
+  --border-subtle-opacity: 1;
+
+  --surface: 240 242 245;
+  --surface-opacity: 1;
+  --surface-hover-opacity: 1;
+  --surface-elevated-opacity: 1;
+
+  --glass-ring: 219 219 219;
+  --glass-ring-opacity: 1;
+  --glass-shadow: 0 1px 2px rgba(0, 0, 0, 0.06), 0 0 0 1px rgb(219 219 219);
+  --glass-hover-shadow: 0 4px 12px rgba(252, 109, 38, 0.1), 0 0 0 1px rgb(252 109 38 / 0.2);
+
+  --scrollbar: 252 109 38;
+  --scrollbar-opacity: 0.4;
+  --selection-bg-opacity: 0.22;
+
+  --success: 34 139 84;
+  --danger: 210 55 55;
+  --warning: 217 149 48;
+
+  --gradient-text: none;
+  --btn-primary-gradient: linear-gradient(to right, rgb(252 109 38), rgb(226 67 41));
+  --btn-primary-shadow: 0 1px 3px rgba(252, 109, 38, 0.3);
+  --logo-gradient: linear-gradient(to bottom right, rgb(252 109 38), rgb(226 67 41));
+}
+
+[data-theme="fox_white"] .gradient-text {
+  color: rgb(var(--primary));
+  background: none;
+  -webkit-background-clip: unset;
+  background-clip: unset;
+  -webkit-text-fill-color: unset;
+}
+
+/* ─── Light (neutral) ─── */
+[data-theme="light"] {
+  --bg: 250 250 250;
+  --bg-header: 255 255 255;
+  --bg-gradient-a: 229 229 229;
+  --bg-gradient-a-opacity: 0.5;
+  --bg-gradient-b: 245 245 245;
+  --bg-gradient-b-opacity: 1;
+
+  --fg: 23 23 23;
+  --fg-secondary: 64 64 64;
+  --muted: 115 115 115;
+  --subtle: 163 163 163;
+
+  --primary: 64 64 64;
+  --primary-hover: 38 38 38;
+  --primary-dark: 23 23 23;
+  --primary-soft: 163 163 163;
+  --primary-soft-opacity: 0.15;
+  --accent: 115 115 115;
+
+  --border: 212 212 212;
+  --border-opacity: 1;
+  --border-subtle-opacity: 1;
+
+  --surface: 255 255 255;
+  --surface-opacity: 1;
+  --surface-hover-opacity: 1;
+  --surface-elevated-opacity: 1;
+
+  --glass-ring: 212 212 212;
+  --glass-ring-opacity: 1;
+  --glass-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 0 0 1px rgb(212 212 212);
+  --glass-hover-shadow: 0 4px 12px rgba(0, 0, 0, 0.06), 0 0 0 1px rgb(163 163 163);
+
+  --scrollbar: 163 163 163;
+  --scrollbar-opacity: 0.4;
+  --selection-bg-opacity: 0.2;
+
+  --success: 22 101 52;
+  --danger: 185 28 28;
+  --warning: 161 98 7;
+
+  --gradient-text: none;
+  --btn-primary-gradient: linear-gradient(to right, rgb(64 64 64), rgb(38 38 38));
+  --btn-primary-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  --logo-gradient: linear-gradient(to bottom right, rgb(82 82 82), rgb(38 38 38));
+}
+
+[data-theme="light"] .gradient-text {
+  color: rgb(var(--fg));
+  background: none;
+  -webkit-background-clip: unset;
+  background-clip: unset;
+  -webkit-text-fill-color: unset;
+}
+
+/* ─── Dark (neutral slate, no brand accents) ─── */
+[data-theme="dark"] {
+  --bg: 15 23 42;
+  --bg-header: 15 23 42;
+  --bg-gradient-a: 30 41 59;
+  --bg-gradient-a-opacity: 0.6;
+  --bg-gradient-b: 15 23 42;
+  --bg-gradient-b-opacity: 1;
+
+  --fg: 248 250 252;
+  --fg-secondary: 226 232 240;
+  --muted: 148 163 184;
+  --subtle: 100 116 139;
+
+  --primary: 148 163 184;
+  --primary-hover: 203 213 225;
+  --primary-dark: 100 116 139;
+  --primary-soft: 148 163 184;
+  --primary-soft-opacity: 0.12;
+  --accent: 148 163 184;
+
+  --border: 255 255 255;
+  --border-opacity: 0.08;
+  --border-subtle-opacity: 0.04;
+
+  --surface: 255 255 255;
+  --surface-opacity: 0.04;
+  --surface-hover-opacity: 0.07;
+  --surface-elevated-opacity: 0.06;
+
+  --glass-ring: 148 163 184;
+  --glass-ring-opacity: 0.08;
+  --glass-shadow: 0 0 0 1px rgba(148, 163, 184, 0.08), 0 4px 24px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  --glass-hover-shadow: 0 0 0 1px rgba(148, 163, 184, 0.15), 0 8px 32px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+
+  --scrollbar: 148 163 184;
+  --scrollbar-opacity: 0.25;
+  --selection-bg-opacity: 0.25;
+
+  --success: 52 211 153;
+  --danger: 251 113 133;
+  --warning: 251 191 36;
+
+  --gradient-text: none;
+  --btn-primary-gradient: linear-gradient(to right, rgb(100 116 139), rgb(148 163 184));
+  --btn-primary-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  --logo-gradient: linear-gradient(to bottom right, rgb(100 116 139), rgb(71 85 105));
+}
+
+[data-theme="dark"] .gradient-text {
+  color: rgb(var(--fg));
+  background: none;
+  -webkit-background-clip: unset;
+  background-clip: unset;
+  -webkit-text-fill-color: unset;
+}

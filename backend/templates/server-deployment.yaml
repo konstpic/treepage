@@ -1,0 +1,80 @@
+{{- if .Values.server.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "treepage-backend.fullname" . }}-server
+  labels:
+    {{- include "treepage-backend.labels" . | nindent 4 }}
+    app.kubernetes.io/component: server
+spec:
+  replicas: {{ .Values.server.replicas }}
+  selector:
+    matchLabels:
+      {{- include "treepage-backend.componentSelectorLabels" (dict "component" "server" "Values" .Values "Chart" .Chart "Release" .Release) | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "treepage-backend.componentSelectorLabels" (dict "component" "server" "Values" .Values "Chart" .Chart "Release" .Release) | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "treepage-backend.serviceAccountName" . }}
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: server
+          image: {{ include "treepage-backend.image" (dict "Values" .Values "repository" .Values.server.image.repository "tag" .Values.server.image.tag) }}
+          imagePullPolicy: {{ .Values.server.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.server.service.containerPort }}
+              protocol: TCP
+          env:
+            - name: CONFIG_PATH
+              value: /opt/app/conf/config.yml
+            - name: SYNC_SERVICE_URL
+              value: {{ include "treepage-backend.syncInternalUrl" . | quote }}
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "treepage-backend.secretName" . }}
+                  key: db-password
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "treepage-backend.secretName" . }}
+                  key: jwt-secret
+            {{- with .Values.server.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          volumeMounts:
+            - name: config
+              mountPath: /opt/app/conf
+              readOnly: true
+          {{- if .Values.server.readinessProbe.enabled }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.server.readinessProbe.path }}
+              port: {{ .Values.server.readinessProbe.port }}
+            initialDelaySeconds: {{ .Values.server.readinessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.server.readinessProbe.periodSeconds }}
+            timeoutSeconds: {{ .Values.server.readinessProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values.server.readinessProbe.failureThreshold }}
+          {{- end }}
+          {{- if .Values.server.livenessProbe.enabled }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.server.livenessProbe.path }}
+              port: {{ .Values.server.livenessProbe.port }}
+            initialDelaySeconds: {{ .Values.server.livenessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.server.livenessProbe.periodSeconds }}
+            timeoutSeconds: {{ .Values.server.livenessProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values.server.livenessProbe.failureThreshold }}
+          {{- end }}
+          resources:
+            {{- toYaml .Values.server.resources | nindent 12 }}
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "treepage-backend.fullname" . }}-server
+{{- end }}

@@ -1,0 +1,21 @@
+server:
+  host: 0.0.0.0
+  port: 8083
+
+postgres:
+  host: postgres
+  port: 5432
+  database: treepage
+  user: treepage
+  ssl_mode: disable
+
+git:
+  sync_interval: 300s
+  work_dir: /tmp/treepage-repos
+
+logging:
+  level: info
+
+security:
+  rate_limit_rps: 50
+  allowed_origins: "*"

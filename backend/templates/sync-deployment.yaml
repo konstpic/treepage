@@ -1,0 +1,94 @@
+{{- if .Values.sync.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "treepage-backend.fullname" . }}-sync
+  labels:
+    {{- include "treepage-backend.labels" . | nindent 4 }}
+    app.kubernetes.io/component: sync
+spec:
+  replicas: {{ .Values.sync.replicas }}
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "treepage-backend.componentSelectorLabels" (dict "component" "sync" "Values" .Values "Chart" .Chart "Release" .Release) | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "treepage-backend.componentSelectorLabels" (dict "component" "sync" "Values" .Values "Chart" .Chart "Release" .Release) | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "treepage-backend.serviceAccountName" . }}
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: sync
+          image: {{ include "treepage-backend.image" (dict "Values" .Values "repository" .Values.sync.image.repository "tag" .Values.sync.image.tag) }}
+          imagePullPolicy: {{ .Values.sync.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.sync.service.containerPort }}
+              protocol: TCP
+          env:
+            - name: CONFIG_PATH
+              value: /opt/app/conf/config.yml
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "treepage-backend.secretName" . }}
+                  key: db-password
+            - name: GIT_ACCESS_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "treepage-backend.secretName" . }}
+                  key: git-access-token
+            - name: GIT_WEBHOOK_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "treepage-backend.secretName" . }}
+                  key: git-webhook-secret
+          volumeMounts:
+            - name: config
+              mountPath: /opt/app/conf
+              readOnly: true
+            - name: repos
+              mountPath: {{ .Values.sync.git.workDir }}
+          {{- if .Values.sync.readinessProbe.enabled }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.sync.readinessProbe.path }}
+              port: {{ .Values.sync.readinessProbe.port }}
+            initialDelaySeconds: {{ .Values.sync.readinessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.sync.readinessProbe.periodSeconds }}
+            timeoutSeconds: {{ .Values.sync.readinessProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values.sync.readinessProbe.failureThreshold }}
+          {{- end }}
+          {{- if .Values.sync.livenessProbe.enabled }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.sync.livenessProbe.path }}
+              port: {{ .Values.sync.livenessProbe.port }}
+            initialDelaySeconds: {{ .Values.sync.livenessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.sync.livenessProbe.periodSeconds }}
+            timeoutSeconds: {{ .Values.sync.livenessProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values.sync.livenessProbe.failureThreshold }}
+          {{- end }}
+          resources:
+            {{- toYaml .Values.sync.resources | nindent 12 }}
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "treepage-backend.fullname" . }}-sync
+        - name: repos
+          {{- if .Values.sync.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "treepage-backend.fullname" . }}-sync-repos
+          {{- else }}
+          emptyDir:
+            {{- if .Values.sync.persistence.emptyDirSizeLimit }}
+            sizeLimit: {{ .Values.sync.persistence.emptyDirSizeLimit }}
+            {{- end }}
+          {{- end }}
+{{- end }}

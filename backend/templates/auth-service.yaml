@@ -1,0 +1,18 @@
+{{- if .Values.auth.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "treepage-backend.fullname" . }}-auth
+  labels:
+    {{- include "treepage-backend.labels" . | nindent 4 }}
+    app.kubernetes.io/component: auth
+spec:
+  type: {{ .Values.auth.service.type }}
+  ports:
+    - port: {{ .Values.auth.service.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "treepage-backend.componentSelectorLabels" (dict "component" "auth" "Values" .Values "Chart" .Chart "Release" .Release) | nindent 4 }}
+{{- end }}

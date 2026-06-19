@@ -1,0 +1,15 @@
+FROM golang:1.22-alpine AS builder
+RUN apk add --no-cache git ca-certificates
+WORKDIR /app
+COPY go.work ./
+COPY backend/pkg ./backend/pkg
+COPY backend/auth ./backend/auth
+WORKDIR /app/backend/auth
+RUN go mod download && CGO_ENABLED=0 go build -o /treepage-auth ./cmd
+
+FROM alpine:3.20
+RUN apk add --no-cache ca-certificates
+COPY --from=builder /treepage-auth /usr/local/bin/treepage-auth
+COPY backend/auth/conf/config.yml /opt/app/conf/config.yml
+EXPOSE 8081
+ENTRYPOINT ["treepage-auth"]

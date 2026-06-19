@@ -1,0 +1,28 @@
+# Dependencies
+frontend/node_modules/
+
+# Build output
+frontend/dist/
+
+# Environment & secrets
+.env
+.env.*
+!.env.example
+
+# Go
+*.exe
+*.test
+backend/**/tmp/
+
+# IDE & OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+
+# Logs
+*.log
+
+# Helm
+deploy/helm/treepage/charts/
+*.tgz

@@ -1,0 +1,9 @@
+dependencies:
+- name: treepage-backend
+  repository: file://../../../backend
+  version: 0.2.0
+- name: treepage-frontend
+  repository: file://../../../.helm/frontend
+  version: 0.2.0
+digest: sha256:a80066bff076477cd2b9c24bab9c7b471d0461e7cf72b5ba78c8007b00e20daa
+generated: "2026-06-19T03:12:45.089949+03:00"

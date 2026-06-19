@@ -1,0 +1,17 @@
+apiVersion: v2
+name: treepage
+description: TreePage full stack (backend + frontend) umbrella chart
+type: application
+version: 0.2.0
+appVersion: "0.1.0"
+kubeVersion: ">=1.24.0-0"
+
+dependencies:
+  - name: treepage-backend
+    alias: backend
+    version: 0.2.0
+    repository: file://../../../backend
+  - name: treepage-frontend
+    alias: frontend
+    version: 0.2.0
+    repository: file://../../../.helm/frontend

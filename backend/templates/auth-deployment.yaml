@@ -1,0 +1,101 @@
+{{- if .Values.auth.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "treepage-backend.fullname" . }}-auth
+  labels:
+    {{- include "treepage-backend.labels" . | nindent 4 }}
+    app.kubernetes.io/component: auth
+spec:
+  replicas: {{ .Values.auth.replicas }}
+  selector:
+    matchLabels:
+      {{- include "treepage-backend.componentSelectorLabels" (dict "component" "auth" "Values" .Values "Chart" .Chart "Release" .Release) | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "treepage-backend.componentSelectorLabels" (dict "component" "auth" "Values" .Values "Chart" .Chart "Release" .Release) | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "treepage-backend.serviceAccountName" . }}
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.auth.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: auth
+          image: {{ include "treepage-backend.image" (dict "Values" .Values "repository" .Values.auth.image.repository "tag" .Values.auth.image.tag) }}
+          imagePullPolicy: {{ .Values.auth.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.auth.service.containerPort }}
+              protocol: TCP
+          env:
+            - name: CONFIG_PATH
+              value: /opt/app/conf/config.yml
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "treepage-backend.secretName" . }}
+                  key: db-password
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "treepage-backend.secretName" . }}
+                  key: jwt-secret
+            - name: OIDC_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "treepage-backend.secretName" . }}
+                  key: oidc-client-secret
+            - name: CSRF_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "treepage-backend.secretName" . }}
+                  key: csrf-secret
+          volumeMounts:
+            - name: config
+              mountPath: /opt/app/conf
+              readOnly: true
+          {{- if .Values.auth.readinessProbe.enabled }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.auth.readinessProbe.path }}
+              port: {{ .Values.auth.readinessProbe.port }}
+            initialDelaySeconds: {{ .Values.auth.readinessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.auth.readinessProbe.periodSeconds }}
+            timeoutSeconds: {{ .Values.auth.readinessProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values.auth.readinessProbe.failureThreshold }}
+          {{- end }}
+          {{- if .Values.auth.livenessProbe.enabled }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.auth.livenessProbe.path }}
+              port: {{ .Values.auth.livenessProbe.port }}
+            initialDelaySeconds: {{ .Values.auth.livenessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.auth.livenessProbe.periodSeconds }}
+            timeoutSeconds: {{ .Values.auth.livenessProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values.auth.livenessProbe.failureThreshold }}
+          {{- end }}
+          resources:
+            {{- toYaml .Values.auth.resources | nindent 12 }}
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "treepage-backend.fullname" . }}-auth
+      {{- with .Values.auth.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.auth.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.auth.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}
