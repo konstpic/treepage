@@ -20,7 +20,7 @@ type Result struct {
 	Skipped []string
 }
 
-// Run applies pending *_up.sql files from dir in lexical order.
+// Run applies pending *.up.sql files from dir in lexical order.
 // Applied versions are tracked in schema_migrations; already applied files are skipped.
 func Run(ctx context.Context, db *gorm.DB, dir string) (Result, error) {
 	var out Result
@@ -139,7 +139,7 @@ func isRecorded(ctx context.Context, db *gorm.DB, version string) (bool, error) 
 }
 
 func listUpFiles(dir string) ([]string, error) {
-	matches, err := filepath.Glob(filepath.Join(dir, "*_up.sql"))
+	matches, err := filepath.Glob(filepath.Join(dir, "*.up.sql"))
 	if err != nil {
 		return nil, err
 	}
