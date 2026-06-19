@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link, useSearchParams } from "react-router-dom";
-import { Loader2, Search } from "lucide-react";
-import { ApiError, optionalAuthApi } from "@/lib/api";
+import { Loader2, Search, Sparkles } from "lucide-react";
+import { ApiError, api, optionalAuthApi } from "@/lib/api";
 import { FadeIn } from "@/components/motion-wrapper";
 import { SelectField } from "@/components/select-field";
 import { useI18n } from "@/lib/i18n";
 import { useTypewriterText } from "@/lib/use-typewriter";
+import { useAuthStore } from "@/lib/store";
+import { cn } from "@/lib/utils";
 
 interface SearchResult {
   id: string;
@@ -42,6 +44,10 @@ function buildSearchUrl(params: {
 
 export function SearchPage() {
   const { t } = useI18n();
+  const { isAuthenticated } = useAuthStore();
+  const [mode, setMode] = useState<"search" | "ask">("search");
+  const [askQuestion, setAskQuestion] = useState("");
+  const [askError, setAskError] = useState("");
   const [searchParams, setSearchParams] = useSearchParams();
   const initialQuery = searchParams.get("q") ?? "";
   const [query, setQuery] = useState(initialQuery);
@@ -94,84 +100,152 @@ export function SearchPage() {
 
   const showResults = submitted.length > 0 && !isLoading && !isFetching && !isError;
 
+  const ragAsk = useMutation({
+    mutationFn: (question: string) =>
+      api<{ answer: string; sources: { space_slug: string; doc_slug: string; title: string; snippet: string }[] }>(
+        "/api/rag/ask",
+        { method: "POST", body: JSON.stringify({ question }) },
+      ),
+    onError: (e) => setAskError(e instanceof ApiError ? e.message : t("common.failed")),
+  });
+
   return (
     <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
       <FadeIn>
-        <h1 className="text-3xl font-bold gradient-text">{t("search.title")}</h1>
-        <form onSubmit={handleSubmit} className="mt-6 space-y-3">
-          <div className="flex gap-2">
-            <div className="relative min-w-0 flex-1">
-              <Search className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-subtle" />
-              <input
-                className="input-field pl-10"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                onFocus={() => setFocused(true)}
-                onBlur={() => setFocused(false)}
-                aria-label={placeholder}
-                placeholder={showTypewriter ? "" : placeholder}
-              />
-              {showTypewriter && (
-                <span
-                  className="pointer-events-none absolute left-10 top-1/2 z-10 flex max-w-[calc(100%-3rem)] -translate-y-1/2 items-center text-sm text-subtle"
-                  aria-hidden
-                >
-                  <span className="truncate">{typedPlaceholder}</span>
-                  <span className="typewriter-cursor ml-px inline-block h-[1.1em] w-px shrink-0 bg-subtle" />
-                </span>
-              )}
-            </div>
-            <button type="submit" className="btn-primary !px-5">
-              {t("search.submit")}
+        <div className="flex flex-wrap gap-2">
+          <button type="button" className={cn("btn-secondary", mode === "search" && "!bg-primary !text-on-primary")} onClick={() => setMode("search")}>
+            <Search className="h-4 w-4" />
+            {t("search.title")}
+          </button>
+          {isAuthenticated && (
+            <button type="button" className={cn("btn-secondary", mode === "ask" && "!bg-primary !text-on-primary")} onClick={() => setMode("ask")}>
+              <Sparkles className="h-4 w-4" />
+              {t("rag.title")}
             </button>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <SelectField
-              className="min-w-[10rem] flex-1"
-              value={spaceSlug}
-              onChange={(e) => setSpaceSlug(e.target.value)}
-              aria-label={t("search.filterSpace")}
+          )}
+        </div>
+        {mode === "search" ? (
+          <>
+            <h1 className="mt-4 text-3xl font-bold gradient-text">{t("search.title")}</h1>
+            <form onSubmit={handleSubmit} className="mt-6 space-y-3">
+              <div className="flex gap-2">
+                <div className="relative min-w-0 flex-1">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-subtle" />
+                  <input
+                    className="input-field pl-10"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    onFocus={() => setFocused(true)}
+                    onBlur={() => setFocused(false)}
+                    aria-label={placeholder}
+                    placeholder={showTypewriter ? "" : placeholder}
+                  />
+                  {showTypewriter && (
+                    <span
+                      className="pointer-events-none absolute left-10 top-1/2 z-10 flex max-w-[calc(100%-3rem)] -translate-y-1/2 items-center text-sm text-subtle"
+                      aria-hidden
+                    >
+                      <span className="truncate">{typedPlaceholder}</span>
+                      <span className="typewriter-cursor ml-px inline-block h-[1.1em] w-px shrink-0 bg-subtle" />
+                    </span>
+                  )}
+                </div>
+                <button type="submit" className="btn-primary !px-5">
+                  {t("search.submit")}
+                </button>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <SelectField
+                  className="min-w-[10rem] flex-1"
+                  value={spaceSlug}
+                  onChange={(e) => setSpaceSlug(e.target.value)}
+                  aria-label={t("search.filterSpace")}
+                >
+                  <option value="">{t("search.allSpaces")}</option>
+                  {spacesData?.items.map((s) => (
+                    <option key={s.id} value={s.slug}>
+                      {s.name}
+                    </option>
+                  ))}
+                </SelectField>
+                <input
+                  className="input-field min-w-[8rem] flex-1"
+                  placeholder={t("search.filterAuthor")}
+                  value={author}
+                  onChange={(e) => setAuthor(e.target.value)}
+                />
+                <input
+                  className="input-field min-w-[8rem] flex-1"
+                  placeholder={t("search.filterTags")}
+                  value={tags}
+                  onChange={(e) => setTags(e.target.value)}
+                />
+              </div>
+            </form>
+          </>
+        ) : (
+          <>
+            <h1 className="mt-4 text-3xl font-bold gradient-text">{t("rag.title")}</h1>
+            <p className="mt-2 text-sm text-muted">{t("rag.subtitle")}</p>
+            <textarea
+              className="input-field mt-4 min-h-[100px] w-full"
+              placeholder={t("rag.placeholder")}
+              value={askQuestion}
+              onChange={(e) => setAskQuestion(e.target.value)}
+            />
+            {askError && <p className="mt-2 text-sm text-danger-soft">{askError}</p>}
+            <button
+              type="button"
+              className="btn-primary mt-3"
+              disabled={!askQuestion.trim() || ragAsk.isPending}
+              onClick={() => {
+                setAskError("");
+                ragAsk.mutate(askQuestion.trim());
+              }}
             >
-              <option value="">{t("search.allSpaces")}</option>
-              {spacesData?.items.map((s) => (
-                <option key={s.id} value={s.slug}>
-                  {s.name}
-                </option>
-              ))}
-            </SelectField>
-            <input
-              className="input-field min-w-[8rem] flex-1"
-              placeholder={t("search.filterAuthor")}
-              value={author}
-              onChange={(e) => setAuthor(e.target.value)}
-            />
-            <input
-              className="input-field min-w-[8rem] flex-1"
-              placeholder={t("search.filterTags")}
-              value={tags}
-              onChange={(e) => setTags(e.target.value)}
-            />
-          </div>
-        </form>
+              {ragAsk.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : t("rag.ask")}
+            </button>
+            {ragAsk.data && (
+              <div className="mt-6 space-y-4">
+                <div className="glass p-4 text-sm text-fg whitespace-pre-wrap">{ragAsk.data.answer}</div>
+                {ragAsk.data.sources?.length > 0 && (
+                  <div>
+                    <p className="text-sm font-medium text-fg">{t("rag.sources")}</p>
+                    <ul className="mt-2 space-y-2 text-sm">
+                      {ragAsk.data.sources.map((s) => (
+                        <li key={`${s.space_slug}-${s.doc_slug}`}>
+                          <Link to={`/spaces/${s.space_slug}/docs/${s.doc_slug}`} className="text-primary hover:underline">
+                            {s.title}
+                          </Link>
+                          <p className="text-xs text-muted">{s.snippet}</p>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+          </>
+        )}
       </FadeIn>
 
-      {(isLoading || isFetching) && submitted && (
+      {mode === "search" && (isLoading || isFetching) && submitted && (
         <div className="flex justify-center py-12">
           <Loader2 className="h-6 w-6 animate-spin text-primary" />
         </div>
       )}
 
-      {isError && submitted && (
+      {mode === "search" && isError && submitted && (
         <p className="mt-8 text-sm text-danger-soft">
           {error instanceof ApiError ? error.message : t("search.failed")}
         </p>
       )}
 
-      {showResults && data && data.total === 0 && (
+      {mode === "search" && showResults && data && data.total === 0 && (
         <p className="mt-8 text-sm text-muted">{t("search.noResults", { query: submitted })}</p>
       )}
 
-      {showResults && data && data.total > 0 && (
+      {mode === "search" && showResults && data && data.total > 0 && (
         <div className="mt-8 space-y-3">
           <p className="text-sm text-subtle">{t("search.results", { count: data.total })}</p>
           {data.items.map((item, i) => (

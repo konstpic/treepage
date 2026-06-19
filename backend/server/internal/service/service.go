@@ -284,6 +284,7 @@ func (d *DocumentService) Create(ctx context.Context, spaceID, userID string, in
 		SpaceID: spaceID, Slug: slug, Title: input.Title,
 		Path: input.Path, Content: input.Content, Tags: input.Tags,
 		AuthorID: &userID, IsPublished: isPublished,
+		WorkflowState: syncWorkflowOnPublish(isPublished, ""),
 	}
 	if err := d.db.WithContext(ctx).Create(&doc).Error; err != nil {
 		return nil, err
@@ -318,6 +319,7 @@ func (d *DocumentService) UpdateFull(ctx context.Context, docID, userID string, 
 	doc.Content = content
 	if isPublished != nil {
 		doc.IsPublished = *isPublished
+		doc.WorkflowState = syncWorkflowOnPublish(*isPublished, doc.WorkflowState)
 	}
 	if doc.RepositoryID != nil {
 		doc.HasPendingChanges = true

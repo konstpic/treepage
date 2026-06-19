@@ -92,6 +92,10 @@ func (h *AdminHandler) Register(r *gin.Engine) {
 		g.DELETE("/spaces/:id/repositories/:repoId", h.UnbindRepository)
 
 		g.GET("/audit-logs", h.base.RequireRoles("super_admin"), h.ListAuditLogs)
+		g.GET("/analytics/overview", h.base.AnalyticsOverview)
+		g.GET("/spaces/:id/page-acl", h.base.ListPageACLRules)
+		g.POST("/spaces/:id/page-acl", h.base.CreatePageACLRule)
+		g.DELETE("/page-acl/:ruleId", h.base.DeletePageACLRule)
 	}
 
 	register(r.Group("/api/admin"))

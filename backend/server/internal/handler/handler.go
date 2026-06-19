@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"net/http"
 	"strings"
 
@@ -8,6 +9,7 @@ import (
 	"github.com/konstpic/treepage/backend/pkg/models"
 	"github.com/konstpic/treepage/backend/server/internal/book"
 	"github.com/konstpic/treepage/backend/server/internal/llm"
+	"github.com/konstpic/treepage/backend/server/internal/rag"
 	"github.com/konstpic/treepage/backend/server/internal/search"
 	"github.com/konstpic/treepage/backend/server/internal/service"
 	"github.com/konstpic/treepage/backend/server/internal/syncclient"
@@ -24,6 +26,10 @@ type Handler struct {
 	prefs         *service.UserPrefsService
 	notifications *service.NotificationService
 	attachments   *service.AttachmentService
+	pageACL       *service.PageACLService
+	comments      *service.CommentService
+	analytics     *service.AnalyticsService
+	rag           *rag.Service
 	search        search.Searcher
 	books         *book.Service
 	translate     *translate.Service
@@ -40,6 +46,10 @@ func New(
 	prefs *service.UserPrefsService,
 	notifications *service.NotificationService,
 	attachments *service.AttachmentService,
+	pageACL *service.PageACLService,
+	comments *service.CommentService,
+	analytics *service.AnalyticsService,
+	ragSvc *rag.Service,
 	searcher search.Searcher,
 	llmClient *llm.Client,
 	admin *service.AdminService,
@@ -51,6 +61,7 @@ func New(
 	return &Handler{
 		spaces: spaces, docs: docs, repos: repos,
 		audit: audit, prefs: prefs, notifications: notifications, attachments: attachments,
+		pageACL: pageACL, comments: comments, analytics: analytics, rag: ragSvc,
 		search: searcher, sync: syncClient,
 		books: book.NewService(docs, db, llmClient),
 		translate: translate.NewService(db, llmClient, admin),
@@ -99,6 +110,14 @@ func (h *Handler) Register(r *gin.Engine) {
 		apiAuth.GET("/notifications/unread-count", h.NotificationUnreadCount)
 		apiAuth.POST("/notifications/:id/read", h.MarkNotificationRead)
 		apiAuth.POST("/notifications/read-all", h.MarkAllNotificationsRead)
+		apiAuth.POST("/documents/:id/publish-workflow", h.PublishDocumentWorkflow)
+		apiAuth.GET("/documents/:id/comments", h.ListDocumentComments)
+		apiAuth.POST("/documents/:id/comments", h.CreateDocumentComment)
+		apiAuth.DELETE("/comments/:id", h.DeleteComment)
+		apiAuth.POST("/documents/:id/submit-review", h.SubmitDocumentReview)
+		apiAuth.POST("/documents/:id/approve", h.ApproveDocumentReview)
+		apiAuth.POST("/documents/:id/reject-review", h.RejectDocumentReview)
+		apiAuth.POST("/rag/ask", h.RAGAsk)
 		apiAuth.GET("/documents/:id/versions", h.ListDocumentVersions)
 		apiAuth.GET("/documents/:id/versions/:version/diff", h.DiffDocumentVersions)
 		apiAuth.GET("/documents/:id/versions/:version", h.GetDocumentVersion)
@@ -212,6 +231,18 @@ func (h *Handler) ListDocuments(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+	effective, _ := h.getEffectiveSpaceRole(c, space)
+	docs = h.pageACL.FilterDocuments(c.Request.Context(), c.GetString("userID"), effective,
+		service.HasRole(getRoles(c), "super_admin"), docs)
+	if !canEdit {
+		var visible []models.Document
+		for _, d := range docs {
+			if service.DocumentVisibleToViewer(&d) {
+				visible = append(visible, d)
+			}
+		}
+		docs = visible
+	}
 	c.JSON(http.StatusOK, gin.H{"items": docs})
 }
 
@@ -234,14 +265,18 @@ func (h *Handler) GetDocument(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "document not found"})
 		return
 	}
-	if !doc.IsPublished && !canEdit {
+	if !canEdit && !service.DocumentVisibleToViewer(doc) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "document not found"})
+		return
+	}
+	if !h.requireDocumentAccess(c, space, doc) {
 		return
 	}
 	userID := c.GetString("userID")
 	if userID != "" {
 		_ = h.prefs.RecordView(c.Request.Context(), userID, doc.ID, space.ID)
 	}
+	h.analytics.RecordView(c.Request.Context(), doc.ID)
 	lang := c.Query("lang")
 	if lang == "" {
 		lang = acceptLanguage(c.GetHeader("Accept-Language"))
@@ -286,6 +321,7 @@ func (h *Handler) CreateDocument(c *gin.Context) {
 		)
 	}
 	h.logAudit(c, "document.create", "document", doc.ID)
+	go func(d models.Document) { _ = h.rag.ReindexDocument(context.Background(), &d) }(*doc)
 	c.JSON(http.StatusCreated, doc)
 }
 
@@ -326,6 +362,7 @@ func (h *Handler) UpdateDocument(c *gin.Context) {
 		)
 	}
 	h.logAudit(c, "document.update", "document", doc.ID)
+	go func(d models.Document) { _ = h.rag.ReindexDocument(context.Background(), &d) }(*doc)
 	c.JSON(http.StatusOK, doc)
 }
 
@@ -395,6 +432,7 @@ func (h *Handler) Search(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+	h.analytics.LogSearch(c.Request.Context(), c.GetString("userID"), q.Text, int(total))
 	c.JSON(http.StatusOK, gin.H{"items": results, "total": total})
 }
 

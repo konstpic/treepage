@@ -22,6 +22,7 @@ import {
   AdminSettingsPage,
   AdminOIDCPage,
   AdminAuditPage,
+  AdminAnalyticsPage,
 } from "@/pages/admin";
 
 export function AppRoutes() {
@@ -51,6 +52,7 @@ export function AppRoutes() {
             <Route path="settings" element={<AdminSettingsPage />} />
             <Route path="oidc" element={<AdminOIDCPage />} />
             <Route path="audit" element={<AdminAuditPage />} />
+            <Route path="analytics" element={<AdminAnalyticsPage />} />
           </Route>
         </Routes>
       }

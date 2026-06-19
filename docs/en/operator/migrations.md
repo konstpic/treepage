@@ -18,6 +18,7 @@ SQL migrations are in `migrations/`.
 | `011_oidc_sync_groups.up.sql` | sync_groups flag for OIDC |
 | `012_production_hardening.up.sql` | Pending changes, audit, OIDC Redis |
 | `013_team_kb.up.sql` | Favorites, recent views, notifications, attachments |
+| `014_enterprise_kb.up.sql` | Page ACL, comments, workflow, analytics, RAG chunks |
 
 > Migration `004` is missing (skipped in numbering).
 

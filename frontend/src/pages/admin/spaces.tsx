@@ -6,6 +6,7 @@ import { FadeIn } from "@/components/motion-wrapper";
 import { SelectField } from "@/components/select-field";
 import { useI18n } from "@/lib/i18n";
 import { useAdminGuard } from "./layout";
+import { SpacePageACLPanel } from "@/components/space-page-acl";
 
 interface Space {
   id: string;
@@ -537,6 +538,7 @@ export function AdminSpacesPage() {
               </div>
             )}
           </div>
+          <SpacePageACLPanel spaceId={editingId} />
         </div>
       )}
 

@@ -156,6 +156,7 @@ type Document struct {
 	HasPendingChanges bool           `json:"has_pending_changes"`
 	LastSyncedAt      *time.Time     `json:"last_synced_at,omitempty"`
 	IsPublished       bool           `json:"is_published"`
+	WorkflowState     string         `gorm:"size:32;default:published" json:"workflow_state"`
 	CreatedAt   time.Time      `json:"created_at"`
 	UpdatedAt   time.Time      `json:"updated_at"`
 }
@@ -308,3 +309,58 @@ type DocumentAttachment struct {
 }
 
 func (DocumentAttachment) TableName() string { return "document_attachments" }
+
+type PageACLRule struct {
+	ID          string    `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	SpaceID     string    `gorm:"type:uuid;index" json:"space_id"`
+	PathPrefix  string    `gorm:"size:512" json:"path_prefix"`
+	SubjectType string    `gorm:"size:16" json:"subject_type"`
+	SubjectID   string    `gorm:"type:uuid" json:"subject_id"`
+	Role        string    `gorm:"size:32" json:"role"`
+	CreatedAt   time.Time `json:"created_at"`
+}
+
+func (PageACLRule) TableName() string { return "page_acl_rules" }
+
+type DocumentComment struct {
+	ID         string         `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	DocumentID string         `gorm:"type:uuid;index" json:"document_id"`
+	ParentID   *string        `gorm:"type:uuid" json:"parent_id,omitempty"`
+	AuthorID   *string        `gorm:"type:uuid" json:"author_id,omitempty"`
+	Body       string         `json:"body"`
+	Mentions   pq.StringArray `gorm:"type:uuid[]" json:"mentions"`
+	CreatedAt  time.Time      `json:"created_at"`
+	UpdatedAt  time.Time      `json:"updated_at"`
+	ResolvedAt *time.Time     `json:"resolved_at,omitempty"`
+	AuthorName string         `gorm:"-" json:"author_name,omitempty"`
+}
+
+func (DocumentComment) TableName() string { return "document_comments" }
+
+type SearchQueryLog struct {
+	ID          string    `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	UserID      *string   `gorm:"type:uuid" json:"user_id,omitempty"`
+	QueryText   string    `gorm:"size:512" json:"query_text"`
+	ResultCount int       `json:"result_count"`
+	CreatedAt   time.Time `json:"created_at"`
+}
+
+func (SearchQueryLog) TableName() string { return "search_query_log" }
+
+type DocumentViewStats struct {
+	DocumentID   string     `gorm:"type:uuid;primaryKey" json:"document_id"`
+	ViewCount    int64      `json:"view_count"`
+	LastViewedAt *time.Time `json:"last_viewed_at,omitempty"`
+}
+
+func (DocumentViewStats) TableName() string { return "document_view_stats" }
+
+type DocumentChunk struct {
+	ID          string `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	DocumentID  string `gorm:"type:uuid;index" json:"document_id"`
+	ChunkIndex  int    `json:"chunk_index"`
+	Content     string `json:"content"`
+	ContentHash string `gorm:"size:64" json:"content_hash"`
+}
+
+func (DocumentChunk) TableName() string { return "document_chunks" }

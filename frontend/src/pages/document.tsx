@@ -6,6 +6,7 @@ import { api, ApiError, optionalAuthApi } from "@/lib/api";
 import { MarkdownRenderer } from "@/components/markdown-renderer";
 import { DocumentEditor } from "@/components/document-editor";
 import { DocumentAttachments } from "@/components/document-attachments";
+import { DocumentComments } from "@/components/document-comments";
 import type { PublishPRInput } from "@/components/publish-pr-dialog";
 import { DocBreadcrumbs } from "@/components/doc-breadcrumbs";
 import { DocumentHistory } from "@/components/document-history";
@@ -25,6 +26,7 @@ interface Document {
   repository_id?: string;
   has_pending_changes?: boolean;
   is_published?: boolean;
+  workflow_state?: string;
   is_favorite?: boolean;
   translated?: boolean;
   source_language?: string;
@@ -115,12 +117,22 @@ export function DocumentPage() {
     onError: (e) => setSaveError(e instanceof ApiError ? e.message : t("common.failed")),
   });
 
-  const publishLocal = useMutation({
-    mutationFn: () => api(`/api/documents/${doc!.id}/publish-local`, { method: "POST" }),
+  const publishWorkflow = useMutation({
+    mutationFn: () => api(`/api/documents/${doc!.id}/publish-workflow`, { method: "POST" }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["document", slug, docSlug] });
       qc.invalidateQueries({ queryKey: ["documents", slug] });
     },
+  });
+
+  const submitReview = useMutation({
+    mutationFn: () => api(`/api/documents/${doc!.id}/submit-review`, { method: "POST" }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["document", slug, docSlug] }),
+  });
+
+  const approveReview = useMutation({
+    mutationFn: () => api(`/api/documents/${doc!.id}/approve`, { method: "POST" }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["document", slug, docSlug] }),
   });
 
   const toggleFavorite = useMutation({
@@ -207,10 +219,10 @@ export function DocumentPage() {
             {t("document.pendingChanges")}
           </div>
         )}
-        {doc.is_published === false && (
+        {doc.workflow_state && doc.workflow_state !== "published" && (
           <div className="mb-4 rounded-xl border border-default bg-surface-muted px-4 py-3 text-sm text-fg">
-            <span className="badge badge-neutral mr-2">{t("document.draft")}</span>
-            {t("documentEditor.saveDraft")}
+            <span className="badge badge-neutral mr-2">{t(`workflow.${doc.workflow_state}`)}</span>
+            {t("workflow.statusHint")}
           </div>
         )}
         {!editing && (
@@ -302,7 +314,17 @@ export function DocumentPage() {
               onSave={() => saveDoc.mutate({})}
               onSaveDraft={() => saveDoc.mutate({ draft: true })}
               onPublishLocal={
-                doc.is_published === false ? () => publishLocal.mutate() : undefined
+                doc.is_published === false || doc.workflow_state === "approved"
+                  ? () => publishWorkflow.mutate()
+                  : undefined
+              }
+              onSubmitReview={
+                canEdit && (doc.workflow_state === "draft" || !doc.workflow_state)
+                  ? () => submitReview.mutate()
+                  : undefined
+              }
+              onApproveReview={
+                canEdit && doc.workflow_state === "in_review" ? () => approveReview.mutate() : undefined
               }
               onPublishPR={async (input) => {
                 await publishPR.mutateAsync(input);
@@ -319,6 +341,7 @@ export function DocumentPage() {
               docPath={doc.path}
             />
             <DocumentAttachments documentId={doc.id} canEdit={canEdit} />
+            <DocumentComments documentId={doc.id} />
           </>
         )}
       </article>

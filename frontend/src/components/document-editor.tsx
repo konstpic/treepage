@@ -23,6 +23,8 @@ interface DocumentEditorProps {
   onSave: () => void;
   onSaveDraft?: () => void;
   onPublishLocal?: () => void;
+  onSubmitReview?: () => void;
+  onApproveReview?: () => void;
   onPublishPR?: (input: PublishPRInput) => void | Promise<void>;
   onCancel: () => void;
 }
@@ -44,6 +46,8 @@ export function DocumentEditor({
   onSave,
   onSaveDraft,
   onPublishLocal,
+  onSubmitReview,
+  onApproveReview,
   onPublishPR,
   onCancel,
 }: DocumentEditorProps) {
@@ -66,6 +70,16 @@ export function DocumentEditor({
         {onSaveDraft && (
           <button type="button" className="btn-secondary" disabled={saving || publishing} onClick={onSaveDraft}>
             {t("documentEditor.saveDraft")}
+          </button>
+        )}
+        {onSubmitReview && (
+          <button type="button" className="btn-secondary" disabled={saving || publishing} onClick={onSubmitReview}>
+            {t("workflow.submitReview")}
+          </button>
+        )}
+        {onApproveReview && (
+          <button type="button" className="btn-secondary" disabled={saving || publishing} onClick={onApproveReview}>
+            {t("workflow.approve")}
           </button>
         )}
         {onPublishLocal && (

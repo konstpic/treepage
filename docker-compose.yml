@@ -23,6 +23,7 @@ services:
       - ./migrations/011_oidc_sync_groups.up.sql:/docker-entrypoint-initdb.d/010_oidc_sync_groups.sql:ro
       - ./migrations/012_production_hardening.up.sql:/docker-entrypoint-initdb.d/011_production_hardening.sql:ro
       - ./migrations/013_team_kb.up.sql:/docker-entrypoint-initdb.d/012_team_kb.sql:ro
+      - ./migrations/014_enterprise_kb.up.sql:/docker-entrypoint-initdb.d/013_enterprise_kb.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U treepage"]
       interval: 5s

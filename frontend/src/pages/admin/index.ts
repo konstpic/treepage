@@ -6,3 +6,4 @@ export { AdminSettingsPage } from "./settings";
 export { AdminGroupsPage } from "./groups";
 export { AdminOIDCPage } from "./oidc";
 export { AdminAuditPage } from "./audit";
+export { AdminAnalyticsPage } from "./analytics";

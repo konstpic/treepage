@@ -18,6 +18,7 @@ SQL-миграции находятся в `migrations/`.
 | `011_oidc_sync_groups.up.sql` | sync_groups flag для OIDC |
 | `012_production_hardening.up.sql` | Pending changes, audit, OIDC Redis |
 | `013_team_kb.up.sql` | Избранное, недавние, уведомления, вложения |
+| `014_enterprise_kb.up.sql` | ACL страниц, комментарии, workflow, аналитика, RAG |
 
 > Миграция `004` отсутствует (пропущена в нумерации).
 

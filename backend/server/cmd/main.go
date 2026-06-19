@@ -18,6 +18,7 @@ import (
 	"github.com/konstpic/treepage/backend/pkg/middleware"
 	"github.com/konstpic/treepage/backend/server/internal/handler"
 	"github.com/konstpic/treepage/backend/server/internal/llm"
+	"github.com/konstpic/treepage/backend/server/internal/rag"
 	"github.com/konstpic/treepage/backend/server/internal/search"
 	"github.com/konstpic/treepage/backend/server/internal/service"
 	"github.com/konstpic/treepage/backend/server/internal/syncclient"
@@ -77,6 +78,9 @@ func main() {
 	}
 	attachments := service.NewAttachmentService(db, attachmentsDir)
 	_ = attachments.EnsureDir()
+	pageACL := service.NewPageACLService(db)
+	comments := service.NewCommentService(db)
+	analyticsSvc := service.NewAnalyticsService(db)
 	searcher := search.NewFromEnv(db, log)
 
 	llmClient := llm.NewClient(llm.LoadConfigFromEnv(
@@ -91,6 +95,7 @@ func main() {
 		syncURL = "http://backend-sync:8083"
 	}
 	syncClient := syncclient.New(syncURL)
+	ragSvc := rag.New(db, llmClient, spaces, pageACL)
 
 	welcomeCfg := service.LoadWelcomeBootstrapConfig()
 	if welcomeRepo, created, err := service.BootstrapWelcomeSpace(context.Background(), db, welcomeCfg, log); err != nil {
@@ -235,6 +240,49 @@ func main() {
 	)`).Error
 	_ = db.Exec(`CREATE INDEX IF NOT EXISTS idx_document_attachments_doc ON document_attachments(document_id)`).Error
 
+	_ = db.Exec(`CREATE TABLE IF NOT EXISTS page_acl_rules (
+		id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+		space_id UUID NOT NULL REFERENCES spaces(id) ON DELETE CASCADE,
+		path_prefix VARCHAR(512) NOT NULL DEFAULT '',
+		subject_type VARCHAR(16) NOT NULL CHECK (subject_type IN ('user', 'group')),
+		subject_id UUID NOT NULL,
+		role VARCHAR(32) NOT NULL DEFAULT 'viewer',
+		created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+		UNIQUE (space_id, path_prefix, subject_type, subject_id)
+	)`).Error
+	_ = db.Exec(`CREATE TABLE IF NOT EXISTS document_comments (
+		id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+		document_id UUID NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+		parent_id UUID REFERENCES document_comments(id) ON DELETE CASCADE,
+		author_id UUID REFERENCES users(id) ON DELETE SET NULL,
+		body TEXT NOT NULL,
+		mentions UUID[] NOT NULL DEFAULT '{}',
+		created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+		updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+		resolved_at TIMESTAMPTZ
+	)`).Error
+	_ = db.Exec(`ALTER TABLE documents ADD COLUMN IF NOT EXISTS workflow_state VARCHAR(32) NOT NULL DEFAULT 'published'`).Error
+	_ = db.Exec(`CREATE TABLE IF NOT EXISTS search_query_log (
+		id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+		user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+		query_text VARCHAR(512) NOT NULL,
+		result_count INT NOT NULL DEFAULT 0,
+		created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+	)`).Error
+	_ = db.Exec(`CREATE TABLE IF NOT EXISTS document_view_stats (
+		document_id UUID PRIMARY KEY REFERENCES documents(id) ON DELETE CASCADE,
+		view_count BIGINT NOT NULL DEFAULT 0,
+		last_viewed_at TIMESTAMPTZ
+	)`).Error
+	_ = db.Exec(`CREATE TABLE IF NOT EXISTS document_chunks (
+		id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+		document_id UUID NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+		chunk_index INT NOT NULL,
+		content TEXT NOT NULL,
+		content_hash VARCHAR(64) NOT NULL,
+		UNIQUE (document_id, chunk_index)
+	)`).Error
+
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
 	r.Use(gin.Recovery())
@@ -247,7 +295,7 @@ func main() {
 	})
 	h.Register(r)
 
-	hdl := handler.New(spaces, docs, repos, audit, prefs, notifications, attachments, searcher, llmClient, admin, db, jwtMgr, syncClient, cfg.Security.EnableAuditLog)
+	hdl := handler.New(spaces, docs, repos, audit, prefs, notifications, attachments, pageACL, comments, analyticsSvc, ragSvc, searcher, llmClient, admin, db, jwtMgr, syncClient, cfg.Security.EnableAuditLog)
 	hdl.Register(r)
 	adminHdl := handler.NewAdminHandler(hdl, admin, groups, spaces, repos, audit, syncClient, cfg.Security.EnableAuditLog)
 	adminHdl.Register(r)

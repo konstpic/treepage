@@ -73,6 +73,43 @@ func (h *Handler) canUseLLMInSpace(c *gin.Context, space *models.Space) bool {
 	return service.CanUseLLMInSpace(effective, getRoles(c))
 }
 
+func (h *Handler) requireDocumentAccess(c *gin.Context, space *models.Space, doc *models.Document) bool {
+	if !h.requireSpaceAccess(c, space) {
+		return false
+	}
+	canEdit, err := h.canEditInSpace(c, space)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return false
+	}
+	if canEdit {
+		effective, _ := h.getEffectiveSpaceRole(c, space)
+		_, ok := h.pageACL.EffectiveDocumentRole(
+			c.Request.Context(), space.ID, doc.Path, c.GetString("userID"), effective,
+			service.HasRole(getRoles(c), "super_admin"),
+		)
+		if !ok {
+			c.JSON(http.StatusNotFound, gin.H{"error": "document not found"})
+			return false
+		}
+		return true
+	}
+	if !service.DocumentVisibleToViewer(doc) {
+		c.JSON(http.StatusNotFound, gin.H{"error": "document not found"})
+		return false
+	}
+	effective, _ := h.getEffectiveSpaceRole(c, space)
+	_, ok := h.pageACL.EffectiveDocumentRole(
+		c.Request.Context(), space.ID, doc.Path, c.GetString("userID"), effective,
+		service.HasRole(getRoles(c), "super_admin"),
+	)
+	if !ok {
+		c.JSON(http.StatusNotFound, gin.H{"error": "document not found"})
+		return false
+	}
+	return true
+}
+
 func getRoles(c *gin.Context) []string {
 	v, _ := c.Get("roles")
 	roles, _ := v.([]string)
