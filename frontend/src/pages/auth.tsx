@@ -37,22 +37,22 @@ export function AuthPage() {
     }
   }
 
-  function handleDevLogin(e: React.FormEvent) {
+  async function handleDevLogin(e: React.FormEvent) {
     e.preventDefault();
     setError("");
-    startAuthFormSplash(async () => {
-      setLoading(true);
-      try {
-        const data = await loginLocal(email, password);
-        setAuth(data.access_token, data.refresh_token);
-        if (data.user) setUser(data.user);
+    setLoading(true);
+    try {
+      const data = await loginLocal(email, password);
+      setAuth(data.access_token, data.refresh_token);
+      if (data.user) setUser(data.user);
+      startAuthFormSplash(() => {
         navigate("/spaces", { replace: true });
-      } catch (err) {
-        setError(err instanceof ApiError ? err.message : t("auth.loginFailed"));
-      } finally {
         setLoading(false);
-      }
-    });
+      });
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : t("auth.loginFailed"));
+      setLoading(false);
+    }
   }
 
   return (

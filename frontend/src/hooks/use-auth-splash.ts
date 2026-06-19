@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import { useSplashStore } from "@/lib/splash-store";
 
-/** Scatter form + splash — only for auth page «Sign in» submit. */
+/** Scatter form + splash after successful auth submit (call only when credentials are valid). */
 export function useAuthFormSplash() {
   const requestAuthFormSplash = useSplashStore((s) => s.requestAuthFormSplash);
 

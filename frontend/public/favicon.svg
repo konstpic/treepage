@@ -10,7 +10,7 @@
       stroke-linejoin="round"
     />
     <path
-      d="M 12 23 L 12 19"
+      d="M 12 23 L 12 20.5"
       fill="none"
       stroke="white"
       stroke-width="2"

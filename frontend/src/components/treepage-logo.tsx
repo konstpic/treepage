@@ -11,14 +11,16 @@ import { motion } from "framer-motion";
  */
 export const PINE_CANOPY =
   "m17 14 3 3.3a1 1 0 0 1-.7 1.7H4.7a1 1 0 0 1-.7-1.7L7 14h-.3a1 1 0 0 1-.7-1.7L9 9h-.2A1 1 0 0 1 8 7.3L12 3l4 4.3a1 1 0 0 1-.8 1.7H15l3 3.3a1 1 0 0 1-.7 1.7H17Z";
-export const PINE_TRUNK = "M 12 23 L 12 19";
-/** Drawn top → bottom so the stroke grows down from the canopy, not up from a base dot. */
-export const PINE_TRUNK_DRAW = "M 12 19 L 12 23";
+export const PINE_TRUNK = "M 12 23 L 12 20.5";
 
 const CANOPY_DURATION = 1.5;
-const TRUNK_DURATION = 0.3;
+const TRUNK_DURATION = 0.45;
 const CANOPY_EASE: [number, number, number, number] = [0.42, 0, 0.2, 1];
+const TRUNK_EASE: [number, number, number, number] = [0.33, 1, 0.68, 1];
 const STROKE = 2;
+const TRUNK_STROKE = 2.35;
+/** Top of trunk where it meets the canopy (viewBox coords). */
+const TRUNK_ORIGIN = "12px 20.5px";
 
 interface TreePageLogoProps {
   size?: number;
@@ -44,10 +46,7 @@ export function TreePageLogo({
     ? { duration: CANOPY_DURATION, ease: CANOPY_EASE }
     : { duration: 0 };
   const trunkTransition = animate
-    ? {
-        pathLength: { delay: CANOPY_DURATION, duration: TRUNK_DURATION, ease: CANOPY_EASE },
-        opacity: { delay: CANOPY_DURATION, duration: 0.01 },
-      }
+    ? { delay: CANOPY_DURATION, duration: TRUNK_DURATION, ease: TRUNK_EASE }
     : { duration: 0 };
 
   return (
@@ -61,6 +60,13 @@ export function TreePageLogo({
       <defs>
         <filter id={`pine-glow-${uid}`} x="-50%" y="-50%" width="200%" height="200%">
           <feGaussianBlur stdDeviation="0.8" result="blur" />
+          <feMerge>
+            <feMergeNode in="blur" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+        <filter id={`pine-trunk-glow-${uid}`} x="-100%" y="-100%" width="300%" height="300%">
+          <feGaussianBlur stdDeviation="0.45" result="blur" />
           <feMerge>
             <feMergeNode in="blur" />
             <feMergeNode in="SourceGraphic" />
@@ -100,15 +106,16 @@ export function TreePageLogo({
             d={PINE_TRUNK}
             fill="none"
             stroke={stroke}
-            strokeWidth={STROKE}
+            strokeWidth={TRUNK_STROKE}
             strokeLinecap="round"
+            filter={onPrimary ? undefined : `url(#pine-trunk-glow-${uid})`}
           />
         </>
       )}
 
       {animate && (
         <>
-          {/* Ghost underlay — canopy only; trunk uses a single solid stroke */}
+          {/* Ghost underlay — canopy only; trunk uses a lighter glow filter */}
           <motion.path
             d={PINE_CANOPY}
             fill="none"
@@ -136,16 +143,21 @@ export function TreePageLogo({
             animate={{ pathLength: 1 }}
             transition={canopyTransition}
           />
-          <motion.path
-            d={PINE_TRUNK_DRAW}
-            fill="none"
-            stroke={stroke}
-            strokeWidth={STROKE}
-            strokeLinecap="round"
-            initial={{ pathLength: 0, opacity: 0 }}
-            animate={{ pathLength: 1, opacity: 1 }}
+          <motion.g
+            style={{ transformOrigin: TRUNK_ORIGIN, transformBox: "fill-box" as const }}
+            initial={{ opacity: 0, scaleY: 0 }}
+            animate={{ opacity: 1, scaleY: 1 }}
             transition={trunkTransition}
-          />
+          >
+            <path
+              d={PINE_TRUNK}
+              fill="none"
+              stroke={stroke}
+              strokeWidth={TRUNK_STROKE}
+              strokeLinecap="round"
+              filter={onPrimary ? undefined : `url(#pine-trunk-glow-${uid})`}
+            />
+          </motion.g>
         </>
       )}
     </svg>

@@ -1,8 +1,16 @@
-# TreePage
+<p align="center">
+  <a href="https://github.com/konstpic/treepage">
+    <img src="preview/hero.svg" alt="TreePage" width="480" />
+  </a>
+</p>
 
-Self-hosted documentation platform with Git synchronization, Markdown rendering, Mermaid diagrams, RBAC, and OIDC authentication.
+<p align="center">
+  Self-hosted documentation platform with Git synchronization, Markdown rendering, Mermaid diagrams, RBAC, and OIDC authentication.
+</p>
 
-**Repository:** [github.com/konstpic/treepage](https://github.com/konstpic/treepage)
+<p align="center">
+  <strong>Repository:</strong> <a href="https://github.com/konstpic/treepage">github.com/konstpic/treepage</a>
+</p>
 
 ```bash
 git clone https://github.com/konstpic/treepage.git
@@ -11,6 +19,25 @@ docker compose up --build
 ```
 
 **First login:** http://localhost:5173/auth → `admin@local` / `admin` → http://localhost:5173/spaces/welcome
+
+## Preview
+
+<table>
+  <tr>
+    <td align="center" width="33%">
+      <img src="preview/image.png" alt="Landing page" width="100%" />
+      <br /><sub>Landing</sub>
+    </td>
+    <td align="center" width="33%">
+      <img src="preview/spaces.png" alt="Spaces" width="100%" />
+      <br /><sub>Spaces</sub>
+    </td>
+    <td align="center" width="33%">
+      <img src="preview/search.png" alt="Search" width="100%" />
+      <br /><sub>Search</sub>
+    </td>
+  </tr>
+</table>
 
 ## Documentation
 
@@ -37,6 +64,9 @@ frontend (React/Vite) → backend-auth (OIDC/JWT)
 ## Quick Start (Docker Compose)
 
 ```bash
+# Avoid BuildKit Bake EOF on Docker Desktop (see .env.example)
+cp -n .env.example .env 2>/dev/null || true
+
 # Start all services with hot reload
 docker compose up --build
 

@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 320" fill="none" role="img" aria-label="TreePage">
+  <defs>
+    <radialGradient id="aura" cx="50%" cy="42%" r="42%">
+      <stop offset="0%" stop-color="#fc6d26" stop-opacity="0.35">
+        <animate attributeName="stop-opacity" values="0.28;0.42;0.28" dur="2.4s" repeatCount="indefinite" />
+      </stop>
+      <stop offset="100%" stop-color="#fc6d26" stop-opacity="0" />
+    </radialGradient>
+    <radialGradient id="bg" cx="50%" cy="40%" r="55%">
+      <stop offset="0%" stop-color="#fc6d26" stop-opacity="0.12" />
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0" />
+    </radialGradient>
+    <filter id="canopy-glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="1.2" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+    <filter id="trunk-glow" x="-120%" y="-120%" width="340%" height="340%">
+      <feGaussianBlur stdDeviation="0.7" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+    <linearGradient id="title" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#ea580c" />
+      <stop offset="100%" stop-color="#fb923c" />
+    </linearGradient>
+  </defs>
+
+  <rect width="480" height="320" fill="#fafafa" />
+  <ellipse cx="240" cy="118" rx="150" ry="110" fill="url(#bg)" />
+  <circle cx="240" cy="108" r="88" fill="url(#aura)" />
+
+  <g transform="translate(240 96) scale(4.5) translate(-12 -12)">
+    <path
+      d="m17 14 3 3.3a1 1 0 0 1-.7 1.7H4.7a1 1 0 0 1-.7-1.7L7 14h-.3a1 1 0 0 1-.7-1.7L9 9h-.2A1 1 0 0 1 8 7.3L12 3l4 4.3a1 1 0 0 1-.8 1.7H15l3 3.3a1 1 0 0 1-.7 1.7H17Z"
+      fill="none"
+      stroke="#fc6d26"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      filter="url(#canopy-glow)"
+    />
+    <path
+      d="M 12 23 L 12 20.5"
+      fill="none"
+      stroke="#fc6d26"
+      stroke-width="2.35"
+      stroke-linecap="round"
+      filter="url(#trunk-glow)"
+    />
+  </g>
+
+  <text
+    x="240"
+    y="210"
+    text-anchor="middle"
+    font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif"
+    font-size="42"
+    font-weight="700"
+    fill="url(#title)"
+    letter-spacing="-0.02em"
+  >
+    TreePage
+  </text>
+  <rect x="204" y="224" width="72" height="3" rx="1.5" fill="#fc6d26" opacity="0.55" />
+</svg>

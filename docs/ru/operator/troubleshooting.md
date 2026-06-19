@@ -160,6 +160,26 @@ helm lint backend --strict
 
 ## Docker Compose
 
+### `listing workers for Build: EOF`
+
+Ошибка BuildKit/Bake в Docker Compose v5 на Docker Desktop — не баг TreePage.
+
+**Решение:**
+
+1. Перезапустите Docker Desktop
+2. В корне проекта есть `.env` с `COMPOSE_BAKE=false` (отключает Bake)
+3. Запуск:
+
+```bash
+docker compose up -d --build
+```
+
+Если не помогло — явно:
+
+```bash
+COMPOSE_BAKE=false docker compose up -d --build
+```
+
 ```bash
 # Логи всех сервисов
 docker compose logs -f
