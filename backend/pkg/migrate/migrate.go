@@ -14,43 +14,50 @@ import (
 
 const legacyInitCutoff = 14 // migrations 001–014 were previously applied via docker-entrypoint-initdb.d
 
+// Result summarizes a migration run.
+type Result struct {
+	Applied []string
+	Skipped []string
+}
+
 // Run applies pending *_up.sql files from dir in lexical order.
-// Applied versions are tracked in schema_migrations.
-func Run(ctx context.Context, db *gorm.DB, dir string) ([]string, error) {
+// Applied versions are tracked in schema_migrations; already applied files are skipped.
+func Run(ctx context.Context, db *gorm.DB, dir string) (Result, error) {
+	var out Result
 	if err := ensureSchemaTable(ctx, db); err != nil {
-		return nil, err
+		return out, err
 	}
 	if err := baselineLegacy(ctx, db, dir); err != nil {
-		return nil, err
+		return out, err
 	}
 
 	files, err := listUpFiles(dir)
 	if err != nil {
-		return nil, err
+		return out, err
 	}
 
-	var applied []string
 	for _, path := range files {
 		version := versionFromPath(path)
 		done, err := isRecorded(ctx, db, version)
 		if err != nil {
-			return applied, err
+			return out, err
 		}
 		if done {
+			out.Skipped = append(out.Skipped, version)
 			continue
 		}
 
 		body, err := os.ReadFile(path)
 		if err != nil {
-			return applied, fmt.Errorf("read migration %s: %w", version, err)
+			return out, fmt.Errorf("read migration %s: %w", version, err)
 		}
 
 		if err := applyMigration(ctx, db, version, string(body)); err != nil {
-			return applied, fmt.Errorf("apply migration %s: %w", version, err)
+			return out, fmt.Errorf("apply migration %s: %w", version, err)
 		}
-		applied = append(applied, version)
+		out.Applied = append(out.Applied, version)
 	}
-	return applied, nil
+	return out, nil
 }
 
 func ensureSchemaTable(ctx context.Context, db *gorm.DB) error {

@@ -63,10 +63,15 @@ func main() {
 	}
 
 	migrationsDir := migrate.ResolveDir()
-	if applied, err := migrate.Run(context.Background(), db, migrationsDir); err != nil {
+	migResult, err := migrate.Run(context.Background(), db, migrationsDir)
+	if err != nil {
 		log.Fatal("database migrations failed", zap.String("dir", migrationsDir), zap.Error(err))
-	} else if len(applied) > 0 {
-		log.Info("database migrations applied", zap.Strings("versions", applied))
+	}
+	if len(migResult.Applied) > 0 {
+		log.Info("database migrations applied", zap.Strings("versions", migResult.Applied))
+	}
+	if len(migResult.Skipped) > 0 {
+		log.Info("database migrations skipped (already applied)", zap.Int("count", len(migResult.Skipped)))
 	}
 
 	jwtMgr, err := pkgjwt.NewManager(cfg.JWT)
