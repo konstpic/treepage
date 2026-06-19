@@ -1,8 +1,8 @@
-go 1.22
+go 1.24
 
 use (
 	./backend/auth
+	./backend/pkg
 	./backend/server
 	./backend/sync
-	./backend/pkg
 )

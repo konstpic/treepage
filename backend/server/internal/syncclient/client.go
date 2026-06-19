@@ -8,6 +8,8 @@ import (
 	"io"
 	"net/http"
 	"time"
+
+	"github.com/konstpic/treepage/backend/pkg/internalauth"
 )
 
 type Client struct {
@@ -22,12 +24,19 @@ func New(baseURL string) *Client {
 	}
 }
 
+func (c *Client) applyInternalAuth(req *http.Request) {
+	if name, token := internalauth.ClientHeader(); token != "" {
+		req.Header.Set(name, token)
+	}
+}
+
 func (c *Client) TriggerSync(ctx context.Context, repoID string) (int, []byte, error) {
 	url := fmt.Sprintf("%s/api/sync/repositories/%s", c.baseURL, repoID)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, nil)
 	if err != nil {
 		return 0, nil, err
 	}
+	c.applyInternalAuth(req)
 	res, err := c.httpClient.Do(req)
 	if err != nil {
 		return 0, nil, err
@@ -65,6 +74,7 @@ func (c *Client) PublishDocument(ctx context.Context, repoID string, input Publi
 		return 0, nil, nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
+	c.applyInternalAuth(req)
 	res, err := c.httpClient.Do(req)
 	if err != nil {
 		return 0, nil, nil, err

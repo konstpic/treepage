@@ -136,5 +136,6 @@ func (h *Handler) TriggerSpaceSync(c *gin.Context) {
 		c.JSON(http.StatusBadGateway, gin.H{"error": err.Error()})
 		return
 	}
+	h.logAudit(c, "repo.sync", "repository", repoID)
 	c.Data(code, "application/json", body)
 }

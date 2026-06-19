@@ -75,7 +75,9 @@ func (h *Handler) Register(r *gin.Engine) {
 		apiAuth.POST("/spaces", h.RequireRoles("super_admin", "admin"), h.CreateSpace)
 		apiAuth.POST("/spaces/:slug/documents", h.CreateDocument)
 		apiAuth.PUT("/documents/:id", h.UpdateDocument)
+		apiAuth.DELETE("/documents/:id", h.DeleteDocument)
 		apiAuth.POST("/documents/:id/publish", h.PublishDocument)
+		apiAuth.POST("/documents/:id/revert/:version", h.RevertDocumentVersion)
 		apiAuth.GET("/documents/:id/versions", h.ListDocumentVersions)
 		apiAuth.GET("/documents/:id/versions/:version/diff", h.DiffDocumentVersions)
 		apiAuth.GET("/documents/:id/versions/:version", h.GetDocumentVersion)
@@ -227,6 +229,7 @@ func (h *Handler) CreateDocument(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+	h.logAudit(c, "document.create", "document", doc.ID)
 	c.JSON(http.StatusCreated, doc)
 }
 
@@ -257,6 +260,7 @@ func (h *Handler) UpdateDocument(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "document not found"})
 		return
 	}
+	h.logAudit(c, "document.update", "document", doc.ID)
 	c.JSON(http.StatusOK, doc)
 }
 

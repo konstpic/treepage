@@ -151,8 +151,11 @@ type Document struct {
 	Tags        pq.StringArray `gorm:"type:text[]" json:"tags"`
 	AuthorID    *string        `gorm:"type:uuid" json:"author_id,omitempty"`
 	AuthorName  string         `gorm:"size:256" json:"author_name,omitempty"`
-	CommitSHA   string         `gorm:"size:64" json:"commit_sha,omitempty"`
-	IsPublished bool           `json:"is_published"`
+	CommitSHA         string         `gorm:"size:64" json:"commit_sha,omitempty"`
+	SyncedContentHash string         `gorm:"size:64" json:"synced_content_hash,omitempty"`
+	HasPendingChanges bool           `json:"has_pending_changes"`
+	LastSyncedAt      *time.Time     `json:"last_synced_at,omitempty"`
+	IsPublished       bool           `json:"is_published"`
 	CreatedAt   time.Time      `json:"created_at"`
 	UpdatedAt   time.Time      `json:"updated_at"`
 }
@@ -251,8 +254,9 @@ type SyncJob struct {
 	TriggerType    string     `gorm:"size:32;default:manual" json:"trigger_type"`
 	StartedAt      *time.Time `json:"started_at,omitempty"`
 	FinishedAt     *time.Time `json:"finished_at,omitempty"`
-	FilesProcessed int        `json:"files_processed"`
-	ErrorMessage   string     `json:"error_message,omitempty"`
+	FilesProcessed   int        `json:"files_processed"`
+	ConflictsSkipped int        `json:"conflicts_skipped"`
+	ErrorMessage     string     `json:"error_message,omitempty"`
 	CreatedAt      time.Time  `json:"created_at"`
 }
 

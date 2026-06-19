@@ -275,6 +275,9 @@ func (d *DocumentService) Update(ctx context.Context, docID, userID string, cont
 		doc.Title = title
 	}
 	doc.Content = content
+	if doc.RepositoryID != nil {
+		doc.HasPendingChanges = true
+	}
 	if err := d.db.WithContext(ctx).Save(&doc).Error; err != nil {
 		return nil, err
 	}
@@ -355,6 +358,37 @@ func (a *AuditService) Log(ctx context.Context, userID, action, resourceType, re
 		entry.ResourceID = &resourceID
 	}
 	_ = a.db.WithContext(ctx).Create(&entry).Error
+}
+
+type AuditLogView struct {
+	models.AuditLog
+	UserEmail string `json:"user_email,omitempty"`
+}
+
+func (a *AuditService) List(ctx context.Context, limit, offset int, action string) ([]AuditLogView, int64, error) {
+	q := a.db.WithContext(ctx).Model(&models.AuditLog{})
+	if action != "" {
+		q = q.Where("action = ?", action)
+	}
+	var total int64
+	if err := q.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	var rows []models.AuditLog
+	if err := q.Order("created_at DESC").Limit(limit).Offset(offset).Find(&rows).Error; err != nil {
+		return nil, 0, err
+	}
+	out := make([]AuditLogView, 0, len(rows))
+	for _, row := range rows {
+		view := AuditLogView{AuditLog: row}
+		if row.UserID != nil {
+			var email string
+			a.db.WithContext(ctx).Model(&models.User{}).Where("id = ?", *row.UserID).Pluck("email", &email)
+			view.UserEmail = email
+		}
+		out = append(out, view)
+	}
+	return out, total, nil
 }
 
 func HasRole(roles []string, allowed ...string) bool {

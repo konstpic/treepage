@@ -76,5 +76,6 @@ func (h *Handler) PublishDocument(c *gin.Context) {
 		c.JSON(status, gin.H{"error": string(respBody)})
 		return
 	}
+	h.logAudit(c, "document.publish", "document", doc.ID)
 	c.JSON(http.StatusOK, result)
 }

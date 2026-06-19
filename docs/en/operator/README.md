@@ -9,6 +9,7 @@ Documentation for DevOps and platform operators.
 | Service configuration | [Configuration](configuration.md) |
 | Secrets and env vars | [Secrets](secrets.md) |
 | Database migrations | [Migrations](migrations.md) |
+| Backup / restore | [Backup and restore](backup-restore.md) |
 | Health checks and metrics | [Monitoring](monitoring.md) |
 | Problem diagnosis | [Troubleshooting](troubleshooting.md) |
 

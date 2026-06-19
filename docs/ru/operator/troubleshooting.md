@@ -180,6 +180,37 @@ docker compose up -d --build
 COMPOSE_BAKE=false docker compose up -d --build
 ```
 
+## Sync API возвращает 401
+
+**Причина:** `backend-server` вызывает `backend-sync` без `INTERNAL_SERVICE_TOKEN` или токены не совпадают.
+
+**Решение:**
+
+```bash
+# .env — один и тот же токен для server и sync
+INTERNAL_SERVICE_TOKEN=your-long-random-secret
+```
+
+Перезапустите `backend-server` и `backend-sync`.
+
+## Git sync не перезаписывает документ
+
+**Ожидаемое поведение (Phase 1):** если страница имеет **локальные правки** (`has_pending_changes`), sync **пропускает** её и увеличивает `conflicts_skipped`.
+
+**Действия:**
+1. Отправьте PR через редактор (**Отправить PR**), или
+2. Восстановите версию из Git вручную в репозитории и снимите флаг правок через publish.
+
+## OIDC login fails после масштабирования auth
+
+**Причина:** OIDC state хранился in-memory.
+
+**Решение:** включите Redis для auth:
+
+```yaml
+REDIS_ADDR: redis:6379
+```
+
 ```bash
 # Логи всех сервисов
 docker compose logs -f

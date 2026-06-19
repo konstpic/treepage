@@ -165,6 +165,7 @@ func (h *Handler) LoginLocal(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "login failed"})
 		return
 	}
+	h.svc.AuditLogin(c.Request.Context(), profile.ID, "local", c.ClientIP(), c.GetHeader("User-Agent"))
 	c.JSON(http.StatusOK, gin.H{
 		"access_token":  pair.AccessToken,
 		"refresh_token": pair.RefreshToken,
@@ -229,12 +230,14 @@ func (h *Handler) Callback(c *gin.Context) {
 	roleNames := extractStringSlice(claims[oidcSettings.RoleClaim])
 	groupNames := extractStringSlice(claims[oidcSettings.GroupClaim])
 
-	_, pair, err := h.svc.UpsertOIDCUser(ctx, email, displayName, picture, idToken.Subject, roleNames, groupNames, oidcSettings.SyncGroups)
+	profile, pair, err := h.svc.UpsertOIDCUser(ctx, email, displayName, picture, idToken.Subject, roleNames, groupNames, oidcSettings.SyncGroups)
 	if err != nil {
 		h.logger.Error("user upsert failed", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "user sync failed"})
 		return
 	}
+
+	h.svc.AuditLogin(ctx, profile.ID, "oidc", c.ClientIP(), c.GetHeader("User-Agent"))
 
 	redirect := fmt.Sprintf("%s/auth/callback?access_token=%s&refresh_token=%s",
 		strings.TrimRight(h.frontendURL, "/"),

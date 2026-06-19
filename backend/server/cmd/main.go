@@ -183,6 +183,11 @@ func main() {
 
 	_ = db.Exec(`ALTER TABLE oidc_providers ADD COLUMN IF NOT EXISTS sync_groups BOOLEAN NOT NULL DEFAULT false`).Error
 
+	_ = db.Exec(`ALTER TABLE documents ADD COLUMN IF NOT EXISTS synced_content_hash VARCHAR(64)`).Error
+	_ = db.Exec(`ALTER TABLE documents ADD COLUMN IF NOT EXISTS has_pending_changes BOOLEAN NOT NULL DEFAULT false`).Error
+	_ = db.Exec(`ALTER TABLE documents ADD COLUMN IF NOT EXISTS last_synced_at TIMESTAMPTZ`).Error
+	_ = db.Exec(`ALTER TABLE sync_jobs ADD COLUMN IF NOT EXISTS conflicts_skipped INT NOT NULL DEFAULT 0`).Error
+
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
 	r.Use(gin.Recovery())

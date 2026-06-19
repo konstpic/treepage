@@ -113,7 +113,7 @@ func main() {
 	})
 	h.Register(r)
 
-	hdl := handler.New(authSvc, jwtMgr, handler.NewMemoryStateStore(), oidcProvider, oauth2Cfg, cfg.Frontend.URL, devmode.Enabled(), log)
+	hdl := handler.New(authSvc, jwtMgr, handler.NewStateStoreFromEnv(handler.NewMemoryStateStore()), oidcProvider, oauth2Cfg, cfg.Frontend.URL, devmode.Enabled(), log)
 	hdl.Register(r)
 
 	srv := &http.Server{Addr: cfg.Server.Addr(), Handler: r}

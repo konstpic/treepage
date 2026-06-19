@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { GitCompare, History, Loader2, X } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { GitCompare, History, Loader2, RotateCcw, X } from "lucide-react";
 import { api } from "@/lib/api";
 import { formatDate } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
@@ -26,10 +26,13 @@ interface VersionDiff {
 
 interface DocumentHistoryProps {
   documentId: string;
+  canEdit?: boolean;
+  onReverted?: () => void;
 }
 
-export function DocumentHistory({ documentId }: DocumentHistoryProps) {
+export function DocumentHistory({ documentId, canEdit, onReverted }: DocumentHistoryProps) {
   const { t } = useI18n();
+  const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [diffVersions, setDiffVersions] = useState<{ from: number; to: number } | null>(null);
 
@@ -46,6 +49,16 @@ export function DocumentHistory({ documentId }: DocumentHistoryProps) {
         `/api/documents/${documentId}/versions/${diffVersions!.to}/diff?from=${diffVersions!.from}`,
       ),
     enabled: diffVersions !== null,
+  });
+
+  const revert = useMutation({
+    mutationFn: (version: number) =>
+      api(`/api/documents/${documentId}/revert/${version}`, { method: "POST" }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["doc-versions", documentId] });
+      onReverted?.();
+      setOpen(false);
+    },
   });
 
   return (
@@ -88,16 +101,33 @@ export function DocumentHistory({ documentId }: DocumentHistoryProps) {
                             {v.author_name && ` · ${v.author_name}`}
                           </p>
                         </div>
-                        {prev && (
-                          <button
-                            type="button"
-                            className="btn-ghost text-xs"
-                            onClick={() => setDiffVersions({ from: prev.version_number, to: v.version_number })}
-                          >
-                            <GitCompare className="mr-1 inline h-3.5 w-3.5" />
-                            {t("document.compareWith", { n: prev.version_number })}
-                          </button>
-                        )}
+                        <div className="flex flex-wrap gap-1">
+                          {canEdit && i > 0 && (
+                            <button
+                              type="button"
+                              className="btn-ghost text-xs"
+                              disabled={revert.isPending}
+                              onClick={() => {
+                                if (window.confirm(t("document.revertConfirm", { n: v.version_number }))) {
+                                  revert.mutate(v.version_number);
+                                }
+                              }}
+                            >
+                              <RotateCcw className="mr-1 inline h-3.5 w-3.5" />
+                              {t("document.revert")}
+                            </button>
+                          )}
+                          {prev && (
+                            <button
+                              type="button"
+                              className="btn-ghost text-xs"
+                              onClick={() => setDiffVersions({ from: prev.version_number, to: v.version_number })}
+                            >
+                              <GitCompare className="mr-1 inline h-3.5 w-3.5" />
+                              {t("document.compareWith", { n: prev.version_number })}
+                            </button>
+                          )}
+                        </div>
                       </div>
                     );
                   })}

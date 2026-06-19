@@ -9,6 +9,7 @@
 | Конфигурация сервисов | [Конфигурация](configuration.md) |
 | Секреты и env vars | [Секреты](secrets.md) |
 | Миграции БД | [Миграции](migrations.md) |
+| Backup / restore | [Резервное копирование](backup-restore.md) |
 | Health checks и метрики | [Мониторинг](monitoring.md) |
 | Диагностика проблем | [Устранение неполадок](troubleshooting.md) |
 

@@ -179,6 +179,24 @@ echo 'COMPOSE_BAKE=false' > .env
 docker compose up -d --build
 ```
 
+## Sync API returns 401
+
+**Cause:** `backend-server` calls `backend-sync` without a matching `INTERNAL_SERVICE_TOKEN`.
+
+**Fix:** set the same token for both services (see `.env.example`), then restart `backend-server` and `backend-sync`.
+
+## Git sync skips documents
+
+**Expected (Phase 1):** pages with **local pending edits** are not overwritten. Sync response includes `conflicts_skipped`.
+
+**Actions:** publish via **Send PR** in the editor, or revert local changes via version history.
+
+## OIDC login fails with multiple auth replicas
+
+**Cause:** in-memory OIDC state without Redis.
+
+**Fix:** set `REDIS_ADDR=redis:6379` for `backend-auth`.
+
 ```bash
 # Logs for all services
 docker compose logs -f

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/subtle"
 	"errors"
 	"net/http"
 	"os"
@@ -13,6 +14,7 @@ import (
 	"github.com/konstpic/treepage/backend/pkg/config"
 	"github.com/konstpic/treepage/backend/pkg/database"
 	"github.com/konstpic/treepage/backend/pkg/health"
+	"github.com/konstpic/treepage/backend/pkg/internalauth"
 	"github.com/konstpic/treepage/backend/pkg/logging"
 	"github.com/konstpic/treepage/backend/pkg/middleware"
 	"github.com/konstpic/treepage/backend/sync/internal/syncer"
@@ -60,6 +62,11 @@ func main() {
 	}
 	go syncSvc.RunScheduled(ctx, interval)
 
+	internalToken := internalauth.TokenFromEnv()
+	if internalToken == "" {
+		log.Warn("INTERNAL_SERVICE_TOKEN is not set — sync API endpoints are disabled")
+	}
+
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
 	r.Use(gin.Recovery())
@@ -71,7 +78,10 @@ func main() {
 	})
 	h.Register(r)
 
-	r.POST("/api/sync/repositories/:id/publish", func(c *gin.Context) {
+	internal := r.Group("/api/sync")
+	internal.Use(internalauth.Middleware(internalToken))
+
+	internal.POST("/repositories/:id/publish", func(c *gin.Context) {
 		var input syncer.PublishInput
 		if err := c.ShouldBindJSON(&input); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -85,24 +95,30 @@ func main() {
 		c.JSON(http.StatusOK, result)
 	})
 
-	r.POST("/api/sync/repositories/:id", func(c *gin.Context) {
+	internal.POST("/repositories/:id", func(c *gin.Context) {
 		id := c.Param("id")
-		if err := syncSvc.SyncRepository(c.Request.Context(), id, "manual"); err != nil {
+		result, err := syncSvc.SyncRepository(c.Request.Context(), id, "manual")
+		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
-		c.JSON(http.StatusOK, gin.H{"status": "completed"})
+		c.JSON(http.StatusOK, gin.H{
+			"status":            "completed",
+			"files_processed":   result.FilesProcessed,
+			"conflicts_skipped": result.ConflictsSkipped,
+		})
 	})
 
 	r.POST("/api/sync/webhook/:id", func(c *gin.Context) {
 		secret := os.Getenv("GIT_WEBHOOK_SECRET")
-		if secret != "" && c.GetHeader("X-Webhook-Secret") != secret {
+		got := c.GetHeader("X-Webhook-Secret")
+		if secret == "" || subtle.ConstantTimeCompare([]byte(got), []byte(secret)) != 1 {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid webhook secret"})
 			return
 		}
 		id := c.Param("id")
 		go func() {
-			_ = syncSvc.SyncRepository(context.Background(), id, "webhook")
+			_, _ = syncSvc.SyncRepository(context.Background(), id, "webhook")
 		}()
 		c.JSON(http.StatusAccepted, gin.H{"status": "accepted"})
 	})

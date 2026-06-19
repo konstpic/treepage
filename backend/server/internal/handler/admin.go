@@ -90,6 +90,8 @@ func (h *AdminHandler) Register(r *gin.Engine) {
 		g.POST("/spaces/:id/members", h.AssignSpaceMember)
 		g.DELETE("/spaces/:id/members/:userId", h.RemoveSpaceMember)
 		g.DELETE("/spaces/:id/repositories/:repoId", h.UnbindRepository)
+
+		g.GET("/audit-logs", h.base.RequireRoles("super_admin"), h.ListAuditLogs)
 	}
 
 	register(r.Group("/api/admin"))
@@ -274,6 +276,9 @@ func (h *AdminHandler) TriggerSync(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusBadGateway, gin.H{"error": err.Error()})
 		return
+	}
+	if code >= 200 && code < 300 && h.auditOn {
+		h.audit.Log(c.Request.Context(), c.GetString("userID"), "repo.sync", "repository", repoID, c.ClientIP(), c.GetHeader("User-Agent"))
 	}
 	c.Data(code, "application/json", body)
 }

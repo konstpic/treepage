@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/konstpic/treepage/backend/pkg/contenthash"
 	"github.com/konstpic/treepage/backend/pkg/models"
 	"go.uber.org/zap"
 )
@@ -117,9 +118,16 @@ func (s *Syncer) PublishDocument(ctx context.Context, repoID string, input Publi
 	}
 
 	if input.DocumentID != "" {
+		hash := contenthash.SHA256(input.Content)
+		now := time.Now()
 		s.db.WithContext(ctx).Model(&models.Document{}).
 			Where("id = ?", input.DocumentID).
-			Update("commit_sha", result.CommitSHA)
+			Updates(map[string]interface{}{
+				"commit_sha":          result.CommitSHA,
+				"synced_content_hash": hash,
+				"has_pending_changes": false,
+				"last_synced_at":      now,
+			})
 	}
 
 	prTitle := strings.TrimSpace(input.PRTitle)

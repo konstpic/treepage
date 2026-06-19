@@ -2,6 +2,7 @@ package syncer
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -11,36 +12,31 @@ import (
 	"strings"
 	"time"
 
+	"github.com/konstpic/treepage/backend/pkg/contenthash"
 	"github.com/konstpic/treepage/backend/pkg/models"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
 
-var mermaidRe = regexp.MustCompile("(?s)```mermaid\\n(.*?)```")
+var ErrSyncConflict = errors.New("sync conflict: document has pending local changes")
 
-type Syncer struct {
-	db      *gorm.DB
-	workDir string
-	token   string
-	logger  *zap.Logger
+type SyncResult struct {
+	FilesProcessed   int
+	ConflictsSkipped int
 }
 
-func New(db *gorm.DB, workDir, token string, logger *zap.Logger) *Syncer {
-	_ = os.MkdirAll(workDir, 0o755)
-	return &Syncer{db: db, workDir: workDir, token: token, logger: logger}
-}
-
-func (s *Syncer) SyncRepository(ctx context.Context, repoID, trigger string) error {
+func (s *Syncer) SyncRepository(ctx context.Context, repoID, trigger string) (*SyncResult, error) {
+	result := &SyncResult{}
 	var repo models.Repository
 	if err := s.db.WithContext(ctx).First(&repo, "id = ?", repoID).Error; err != nil {
-		return err
+		return result, err
 	}
 
 	job := models.SyncJob{RepositoryID: repoID, Status: "running", TriggerType: trigger}
 	now := time.Now()
 	job.StartedAt = &now
 	if err := s.db.WithContext(ctx).Create(&job).Error; err != nil {
-		return err
+		return result, err
 	}
 
 	cloneDir := filepath.Join(s.workDir, repo.ID)
@@ -54,50 +50,61 @@ func (s *Syncer) SyncRepository(ctx context.Context, repoID, trigger string) err
 
 	cmd := exec.CommandContext(ctx, "git", "clone", "--depth", "1", "--branch", repo.Branch, cloneURL, cloneDir)
 	if out, err := cmd.CombinedOutput(); err != nil {
-		s.finishJob(ctx, &job, &repo, 0, fmt.Errorf("git clone: %w: %s", err, string(out)))
-		return err
+		syncErr := fmt.Errorf("git clone: %w: %s", err, string(out))
+		s.finishJob(ctx, &job, &repo, result, syncErr)
+		return result, syncErr
 	}
 
 	docsRoot := filepath.Join(cloneDir, repo.DocsPath)
 	if _, statErr := os.Stat(docsRoot); statErr != nil {
 		syncErr := fmt.Errorf("docs path not found: %s", repo.DocsPath)
-		s.finishJob(ctx, &job, &repo, 0, syncErr)
-		return syncErr
+		s.finishJob(ctx, &job, &repo, result, syncErr)
+		return result, syncErr
 	}
-	count := 0
-	err := filepath.WalkDir(docsRoot, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
+
+	repoHEAD, _ := s.gitOutput(ctx, cloneDir, "rev-parse", "HEAD")
+
+	err := filepath.WalkDir(docsRoot, func(path string, d fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
 			return nil
 		}
 		if d.IsDir() || !strings.HasSuffix(strings.ToLower(d.Name()), ".md") {
 			return nil
 		}
-		content, err := os.ReadFile(path)
-		if err != nil {
+		content, readErr := os.ReadFile(path)
+		if readErr != nil {
 			return nil
 		}
 		rel, _ := filepath.Rel(docsRoot, path)
-		if err := s.upsertDocument(ctx, repo, rel, string(content)); err != nil {
-			s.logger.Warn("document upsert failed", zap.String("path", rel), zap.Error(err))
+		applied, upsertErr := s.upsertDocument(ctx, repo, rel, string(content), strings.TrimSpace(repoHEAD))
+		if errors.Is(upsertErr, ErrSyncConflict) {
+			result.ConflictsSkipped++
+			s.logger.Info("sync skipped document with pending local changes", zap.String("path", rel))
 			return nil
 		}
-		count++
+		if upsertErr != nil {
+			s.logger.Warn("document upsert failed", zap.String("path", rel), zap.Error(upsertErr))
+			return nil
+		}
+		if applied {
+			result.FilesProcessed++
+		}
 		return nil
 	})
 
-	s.finishJob(ctx, &job, &repo, count, err)
-	return err
+	s.finishJob(ctx, &job, &repo, result, err)
+	return result, err
 }
 
-func (s *Syncer) upsertDocument(ctx context.Context, repo models.Repository, relPath, content string) error {
+func (s *Syncer) upsertDocument(ctx context.Context, repo models.Repository, relPath, content, commitSHA string) (bool, error) {
 	title := strings.TrimSuffix(filepath.Base(relPath), ".md")
 	if h1 := extractH1(content); h1 != "" {
 		title = h1
 	}
 	slug := slugify(strings.TrimSuffix(relPath, ".md"))
 	tags := extractTags(content)
-	mermaidBlocks := mermaidRe.FindAllString(content, -1)
-	_ = mermaidBlocks
+	gitHash := contenthash.SHA256(content)
+	now := time.Now()
 
 	var doc models.Document
 	err := s.db.WithContext(ctx).
@@ -109,24 +116,38 @@ func (s *Syncer) upsertDocument(ctx context.Context, repo models.Repository, rel
 			SpaceID: repo.SpaceID, RepositoryID: &repo.ID,
 			Slug: slug, Title: title, Path: relPath,
 			Content: content, Tags: tags, IsPublished: true,
+			SyncedContentHash: gitHash, HasPendingChanges: false, LastSyncedAt: &now,
+			CommitSHA: commitSHA,
 		}
-		return s.db.WithContext(ctx).Create(&doc).Error
+		return true, s.db.WithContext(ctx).Create(&doc).Error
 	}
 	if err != nil {
-		return err
+		return false, err
 	}
+
+	if doc.HasPendingChanges {
+		return false, ErrSyncConflict
+	}
+
 	doc.Title = title
 	doc.Content = content
 	doc.Tags = tags
 	doc.RepositoryID = &repo.ID
 	doc.Path = relPath
-	return s.db.WithContext(ctx).Save(&doc).Error
+	doc.SyncedContentHash = gitHash
+	doc.HasPendingChanges = false
+	doc.LastSyncedAt = &now
+	if commitSHA != "" {
+		doc.CommitSHA = commitSHA
+	}
+	return true, s.db.WithContext(ctx).Save(&doc).Error
 }
 
-func (s *Syncer) finishJob(ctx context.Context, job *models.SyncJob, repo *models.Repository, count int, syncErr error) {
+func (s *Syncer) finishJob(ctx context.Context, job *models.SyncJob, repo *models.Repository, result *SyncResult, syncErr error) {
 	finished := time.Now()
 	job.FinishedAt = &finished
-	job.FilesProcessed = count
+	job.FilesProcessed = result.FilesProcessed
+	job.ConflictsSkipped = result.ConflictsSkipped
 	if syncErr != nil {
 		job.Status = "failed"
 		job.ErrorMessage = syncErr.Error()
@@ -141,6 +162,20 @@ func (s *Syncer) finishJob(ctx context.Context, job *models.SyncJob, repo *model
 	repo.LastSyncAt = &now
 	s.db.WithContext(ctx).Save(job)
 	s.db.WithContext(ctx).Save(repo)
+}
+
+var mermaidRe = regexp.MustCompile("(?s)```mermaid\\n(.*?)```")
+
+type Syncer struct {
+	db      *gorm.DB
+	workDir string
+	token   string
+	logger  *zap.Logger
+}
+
+func New(db *gorm.DB, workDir, token string, logger *zap.Logger) *Syncer {
+	_ = os.MkdirAll(workDir, 0o755)
+	return &Syncer{db: db, workDir: workDir, token: token, logger: logger}
 }
 
 func extractH1(content string) string {
@@ -181,7 +216,6 @@ func slugify(s string) string {
 	return strings.Trim(slugRe.ReplaceAllString(s, "-"), "-")
 }
 
-// resolveCredential uses per-repo ref from admin UI: env var name or literal token value.
 func resolveCredential(ref, fallback string) string {
 	if ref != "" {
 		if v := os.Getenv(ref); v != "" {
@@ -212,7 +246,7 @@ func (s *Syncer) syncAll(ctx context.Context) {
 		return
 	}
 	for _, repo := range repos {
-		if err := s.SyncRepository(ctx, repo.ID, "scheduled"); err != nil {
+		if _, err := s.SyncRepository(ctx, repo.ID, "scheduled"); err != nil {
 			s.logger.Warn("scheduled sync failed", zap.String("repo", repo.Name), zap.Error(err))
 		}
 	}

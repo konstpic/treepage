@@ -20,6 +20,8 @@ services:
       - ./migrations/008_document_translations.up.sql:/docker-entrypoint-initdb.d/007_document_translations.sql:ro
       - ./migrations/009_book_translations.up.sql:/docker-entrypoint-initdb.d/008_book_translations.sql:ro
       - ./migrations/010_space_groups.up.sql:/docker-entrypoint-initdb.d/009_space_groups.sql:ro
+      - ./migrations/011_oidc_sync_groups.up.sql:/docker-entrypoint-initdb.d/010_oidc_sync_groups.sql:ro
+      - ./migrations/012_production_hardening.up.sql:/docker-entrypoint-initdb.d/011_production_hardening.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U treepage"]
       interval: 5s
@@ -30,7 +32,6 @@ services:
     image: redis:7-alpine
     ports:
       - "6379:6379"
-    profiles: ["cache"]
 
   backend-auth:
     build:
@@ -46,6 +47,7 @@ services:
       JWT_SECRET: dev-jwt-secret-change-in-production
       OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-}
       CSRF_SECRET: dev-csrf-secret
+      REDIS_ADDR: redis:6379
     volumes:
       - ./backend/auth:/app/backend/auth
       - ./backend/pkg:/app/backend/pkg
@@ -53,6 +55,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_started
 
   backend-server:
     build:
@@ -65,6 +69,7 @@ services:
       DB_PASSWORD: treepage
       JWT_SECRET: dev-jwt-secret-change-in-production
       SYNC_SERVICE_URL: http://backend-sync:8083
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-dev-internal-token-change-in-production}
       # Optional: AI book enhancement (OpenAI-compatible API)
       # LLM_ENABLED: ${LLM_ENABLED:-false}
       # LLM_API_URL: ${LLM_API_URL:-https://api.openai.com/v1}
@@ -89,6 +94,7 @@ services:
       DB_PASSWORD: treepage
       GIT_ACCESS_TOKEN: ${GIT_ACCESS_TOKEN:-}
       GIT_WEBHOOK_SECRET: ${GIT_WEBHOOK_SECRET:-dev-webhook-secret}
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-dev-internal-token-change-in-production}
     volumes:
       - ./backend/sync:/app/backend/sync
       - ./backend/pkg:/app/backend/pkg

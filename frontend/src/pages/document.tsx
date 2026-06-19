@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useParams } from "react-router-dom";
-import { Edit3, Languages, Loader2 } from "lucide-react";
+import { useParams, useNavigate } from "react-router-dom";
+import { Edit3, Languages, Loader2, Trash2 } from "lucide-react";
 import { api, ApiError, optionalAuthApi } from "@/lib/api";
 import { MarkdownRenderer } from "@/components/markdown-renderer";
 import { DocumentEditor } from "@/components/document-editor";
@@ -21,6 +21,7 @@ interface Document {
   updated_at: string;
   tags?: string[];
   repository_id?: string;
+  has_pending_changes?: boolean;
   translated?: boolean;
   source_language?: string;
   display_language?: string;
@@ -45,6 +46,7 @@ interface PublishResult {
 
 export function DocumentPage() {
   const { slug, docSlug } = useParams<{ slug: string; docSlug: string }>();
+  const navigate = useNavigate();
   const { t, localeId } = useI18n();
   const qc = useQueryClient();
   const [editing, setEditing] = useState(false);
@@ -133,6 +135,14 @@ export function DocumentPage() {
       setPublishError(e instanceof ApiError ? e.message : t("documentEditor.publishFailed")),
   });
 
+  const deleteDoc = useMutation({
+    mutationFn: () => api(`/api/documents/${doc!.id}`, { method: "DELETE" }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["documents", slug] });
+      navigate(`/spaces/${slug}`, { replace: true });
+    },
+  });
+
   function startEdit() {
     if (!doc) return;
     setEditTitle(doc.title);
@@ -164,6 +174,11 @@ export function DocumentPage() {
         docTitle={doc.title}
       />
       <article className="glass p-6 sm:p-8">
+        {doc.has_pending_changes && doc.repository_id && (
+          <div className="mb-4 rounded-xl border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-fg">
+            {t("document.pendingChanges")}
+          </div>
+        )}
         {!editing && (
           <header className="mb-6 border-b border-default pb-5">
             <div className="flex flex-wrap items-start justify-between gap-3">
@@ -173,10 +188,24 @@ export function DocumentPage() {
               </div>
               {canEdit && (
                 <div className="flex items-center gap-1">
-                  <DocumentHistory documentId={doc.id} />
+                  <DocumentHistory
+                    documentId={doc.id}
+                    canEdit
+                    onReverted={() => qc.invalidateQueries({ queryKey: ["document", slug, docSlug] })}
+                  />
                   <button type="button" className="btn-secondary" onClick={startEdit}>
                     <Edit3 className="h-4 w-4" />
                     {t("document.edit")}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-ghost text-danger-soft"
+                    disabled={deleteDoc.isPending}
+                    onClick={() => {
+                      if (window.confirm(t("document.deleteConfirm"))) deleteDoc.mutate();
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4" />
                   </button>
                 </div>
               )}
