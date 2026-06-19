@@ -5,9 +5,17 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+
+	"gorm.io/gorm"
+	"gorm.io/gorm/schema"
 )
 
 type Vector []float32
+
+// GormDBDataType tells GORM to treat vectors as JSONB (not as an unsupported [] slice).
+func (Vector) GormDBDataType(_ *gorm.DB, _ *schema.Field) string {
+	return "jsonb"
+}
 
 func (v Vector) Value() (driver.Value, error) {
 	if v == nil {

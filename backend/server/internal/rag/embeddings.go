@@ -2,6 +2,7 @@ package rag
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/konstpic/treepage/backend/pkg/embeddings"
 	"github.com/konstpic/treepage/backend/pkg/models"
@@ -16,9 +17,14 @@ func (s *Service) rerankWithEmbeddings(ctx context.Context, rows []chunkRow, que
 		return rows
 	}
 
-	ids := make([]string, len(rows))
-	for i, r := range rows {
-		ids[i] = r.ChunkID
+	ids := make([]string, 0, len(rows))
+	for _, r := range rows {
+		if r.ChunkID != "" {
+			ids = append(ids, r.ChunkID)
+		}
+	}
+	if len(ids) == 0 {
+		return rows
 	}
 	var dbChunks []models.DocumentChunk
 	if err := s.db.WithContext(ctx).Where("id IN ?", ids).Find(&dbChunks).Error; err != nil {
@@ -119,11 +125,18 @@ func (s *Service) vectorSearchChunks(ctx context.Context, question string, allow
 		q = q.Where("d.space_id IN ?", allowed)
 	}
 
-	type rowWithEmb struct {
-		chunkRow
-		Embedding embeddings.Vector `gorm:"column:embedding"`
+	type vectorChunkRow struct {
+		ChunkID    string `gorm:"column:chunk_id"`
+		DocumentID string `gorm:"column:document_id"`
+		Content    string `gorm:"column:content"`
+		Title      string `gorm:"column:title"`
+		Slug       string `gorm:"column:slug"`
+		SpaceSlug  string `gorm:"column:space_slug"`
+		SpaceID    string `gorm:"column:space_id"`
+		Path       string `gorm:"column:path"`
+		Embedding  []byte `gorm:"column:embedding"`
 	}
-	var raw []rowWithEmb
+	var raw []vectorChunkRow
 	if err := q.Limit(limit * 15).Scan(&raw).Error; err != nil {
 		return nil, err
 	}
@@ -134,13 +147,35 @@ func (s *Service) vectorSearchChunks(ctx context.Context, question string, allow
 	}
 	scoredRows := make([]scored, 0, len(raw))
 	for _, r := range raw {
-		sim := embeddings.CosineSimilarity(qEmb, r.Embedding)
+		if r.ChunkID == "" {
+			continue
+		}
+		var emb embeddings.Vector
+		if len(r.Embedding) > 0 {
+			if err := json.Unmarshal(r.Embedding, &emb); err != nil {
+				continue
+			}
+		}
+		if len(emb) == 0 {
+			continue
+		}
+		sim := embeddings.CosineSimilarity(qEmb, emb)
 		if sim < 0.25 {
 			continue
 		}
-		r.chunkRow.Rank = sim
-		r.chunkRow.VectorSim = sim
-		scoredRows = append(scoredRows, scored{row: r.chunkRow, sim: sim})
+		row := chunkRow{
+			ChunkID:    r.ChunkID,
+			DocumentID: r.DocumentID,
+			Content:    r.Content,
+			Title:      r.Title,
+			Slug:       r.Slug,
+			SpaceSlug:  r.SpaceSlug,
+			SpaceID:    r.SpaceID,
+			Path:       r.Path,
+			Rank:       sim,
+			VectorSim:  sim,
+		}
+		scoredRows = append(scoredRows, scored{row: row, sim: sim})
 	}
 	for i := 1; i < len(scoredRows); i++ {
 		j := i
@@ -163,6 +198,9 @@ func mergeChunkRows(primary, secondary []chunkRow) []chunkRow {
 	merged := map[string]chunkRow{}
 	order := make([]string, 0, len(primary)+len(secondary))
 	add := func(r chunkRow) {
+		if r.ChunkID == "" {
+			return
+		}
 		if prev, ok := merged[r.ChunkID]; ok {
 			if r.Rank > prev.Rank {
 				merged[r.ChunkID] = r

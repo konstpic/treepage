@@ -107,6 +107,9 @@ func (s *Service) retrieveChunks(ctx context.Context, passes []retrievalPass, al
 			return nil, fmt.Errorf("rag retrieval %s: %w", pass.name, err)
 		}
 		for _, r := range rows {
+			if r.ChunkID == "" {
+				continue
+			}
 			if prev, ok := merged[r.ChunkID]; ok {
 				if r.Rank > prev.Rank {
 					merged[r.ChunkID] = r
