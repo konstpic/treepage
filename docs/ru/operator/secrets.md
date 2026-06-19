@@ -21,14 +21,54 @@
 | `GIT_ACCESS_TOKEN` | sync | HTTPS token для Git |
 | `GIT_WEBHOOK_SECRET` | sync | Secret для webhook validation |
 
-## LLM (опционально)
+## Logging
+
+| Variable | Services | Description |
+|----------|----------|-------------|
+| `LOG_LEVEL` | auth, server, sync | `debug`, `info` (default), `warn`, `error` |
+| `LOGGING_LEVEL` | auth, server, sync | Same as above via config env mapping |
+
+Effective verbosity:
+
+| `LOG_LEVEL` | App logs | SQL (GORM) | HTTP access |
+|-------------|----------|------------|-------------|
+| `debug` | all | every query | all requests |
+| `info` | info+ | slow queries + errors only | 4xx/5xx only |
+| `warn` | warn+ | SQL errors only | 5xx only |
+| `error` | errors only | silent | 5xx only |
+
+Health probes (`/liveness`, `/readiness`, `/metrics`) are never access-logged.
+
+## LLM и RAG (опционально)
 
 | Переменная | Сервис | Описание |
 |------------|--------|----------|
 | `LLM_ENABLED` | server | `true` / `false` |
-| `LLM_API_URL` | server | OpenAI-compatible API URL |
-| `LLM_API_KEY` | server | API key |
-| `LLM_MODEL` | server | Model name |
+| `LLM_API_URL` | server | OpenAI-compatible URL (Ollama: `http://host:11434/v1`) |
+| `LLM_API_KEY` | server | API key (не нужен для локального Ollama) |
+| `LLM_MODEL` | server | Model name (`llama3.2:latest`, `gpt-4o-mini`, …) |
+| `EMBEDDING_ENABLED` | server | `true` — гибридный vector + FTS в RAG |
+| `EMBEDDING_MODEL` | server | Embedding model (`nomic-embed-text` для Ollama) |
+
+## Phase 1 — Sync security
+
+| Переменная | Сервис | Описание |
+|------------|--------|----------|
+| `INTERNAL_SERVICE_TOKEN` | server, sync | Общий токен для вызовов sync API |
+| `REDIS_ADDR` | auth | Redis для OIDC state (несколько реплик auth) |
+
+## Phase 2 — Search backend
+
+| Переменная | Сервис | Описание |
+|------------|--------|----------|
+| `SEARCH_BACKEND` | server | `postgres` (default) или `opensearch` |
+| `OPENSEARCH_URL` | server | URL OpenSearch (если включён) |
+
+## Миграции
+
+| Переменная | Сервис | Описание |
+|------------|--------|----------|
+| `MIGRATIONS_DIR` | server | Папка SQL-миграций (default `/app/migrations` в Docker) |
 
 ## Dev-режим
 
@@ -43,6 +83,8 @@
 |------------|--------|----------|
 | `CONFIG_PATH` | all | Путь к config.yml |
 | `SYNC_SERVICE_URL` | server | URL sync worker |
+| `INTERNAL_SERVICE_TOKEN` | server, sync | Internal sync API token (Phase 1) |
+| `ATTACHMENTS_DIR` | server | Path for uploaded attachments (Phase 2) |
 
 ## Kubernetes Secret
 

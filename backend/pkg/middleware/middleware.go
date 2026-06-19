@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/konstpic/treepage/backend/pkg/logging"
+	"go.uber.org/zap"
 )
 
 func SecureHeaders() gin.HandlerFunc {
@@ -91,5 +93,43 @@ func RequestLogger(logFn func(method, path string, status int, latency time.Dura
 		start := time.Now()
 		c.Next()
 		logFn(c.Request.Method, c.Request.URL.Path, c.Writer.Status(), time.Since(start))
+	}
+}
+
+// ZapAccessLog returns a callback for AccessLogger that writes to zap.
+func ZapAccessLog(log *zap.Logger) func(method, path string, status int, latency time.Duration) {
+	return func(method, path string, status int, latency time.Duration) {
+		fields := []zap.Field{
+			zap.String("method", method),
+			zap.String("path", path),
+			zap.Int("status", status),
+			zap.Duration("latency", latency),
+		}
+		switch {
+		case status >= 500:
+			log.Error("request", fields...)
+		case status >= 400:
+			log.Warn("request", fields...)
+		default:
+			log.Info("request", fields...)
+		}
+	}
+}
+
+// AccessLogger logs HTTP requests; skips health probes and filters by status (see logging.ShouldLogRequest).
+func AccessLogger(appLevel string, logFn func(method, path string, status int, latency time.Duration)) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		path := c.Request.URL.Path
+		if path == "/liveness" || path == "/readiness" || path == "/metrics" {
+			c.Next()
+			return
+		}
+		start := time.Now()
+		c.Next()
+		status := c.Writer.Status()
+		if !logging.ShouldLogRequest(appLevel, status) {
+			return
+		}
+		logFn(c.Request.Method, path, status, time.Since(start))
 	}
 }

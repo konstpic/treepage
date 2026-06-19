@@ -14,6 +14,8 @@ The admin panel is available to users with system roles `admin` or `super_admin`
 | [Groups](groups.md) | `/admin/groups` | admin |
 | [System settings](settings.md) | `/admin/settings` | admin (write: super_admin) |
 | [OIDC providers](oidc.md) | `/admin/oidc` | super_admin |
+| Analytics | `/admin/analytics` | admin |
+| Audit | `/admin/audit` | super_admin |
 
 ## System roles
 

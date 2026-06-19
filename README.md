@@ -56,7 +56,7 @@ Architecture: [EN](docs/en/reference/architecture.md) · [RU](docs/ru/reference/
 
 ```
 frontend (React/Vite) → backend-auth (OIDC/JWT)
-                      → backend-server (Docs API/Search)
+                      → backend-server (Docs API/Search/RAG)
                       → backend-sync (Git sync worker)
                       → PostgreSQL
 ```
@@ -67,7 +67,7 @@ frontend (React/Vite) → backend-auth (OIDC/JWT)
 # Avoid BuildKit Bake EOF on Docker Desktop (see .env.example)
 cp -n .env.example .env 2>/dev/null || true
 
-# Start all services with hot reload
+# Start all services (pre-built backend + Vite frontend)
 docker compose up --build
 
 # Frontend:  http://localhost:5173

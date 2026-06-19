@@ -131,6 +131,49 @@ kubectl set env deploy/treepage-backend-server \
 # + secret for LLM_API_KEY
 ```
 
+## LLM / Books / RAG
+
+### "LLM is not configured"
+
+**Cause:** `LLM_ENABLED` is not set or the LLM URL is unreachable from the container.
+
+**Fix (Ollama on host):**
+
+```bash
+LLM_ENABLED=true
+LLM_API_URL=http://192.168.0.64:11434/v1    # not https, port 11434
+LLM_MODEL=llama3.2:latest
+LLM_API_KEY=
+```
+
+Recreate `backend-server`:
+
+```bash
+docker compose -f docker-compose.dev.yml up -d --build backend-server
+```
+
+> Private IPs (`192.168.*`) and Ollama work **without** an API key.
+
+### RAG finds no documents
+
+1. Check chunks: `SELECT COUNT(*) FROM document_chunks;`
+2. Run space sync or wait for startup backfill
+3. Ensure documents have `is_published = true`
+
+### Embeddings / vector search
+
+```bash
+EMBEDDING_ENABLED=true
+EMBEDDING_MODEL=nomic-embed-text
+# on host: ollama pull nomic-embed-text
+```
+
+Look for logs: `rag embedding backfill completed` or `rag backfill completed`.
+
+### UUID / embedding errors in logs
+
+If you see `invalid input syntax for type uuid: ""` or `unsupported data type` during RAG — update to latest `main` (hybrid vector scan fix).
+
 ### Book generation failed
 
 - Check LLM API availability from server pod

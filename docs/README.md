@@ -1,6 +1,6 @@
 # TreePage Documentation
 
-Self-hosted documentation platform with Git sync, Markdown/Mermaid rendering, full-text search, RBAC, and OIDC authentication.
+Self-hosted documentation platform with Git sync, Markdown/Mermaid rendering, full-text and RAG search, RBAC, and OIDC authentication.
 
 **Repository:** [github.com/konstpic/treepage](https://github.com/konstpic/treepage)
 
@@ -25,3 +25,4 @@ Self-hosted documentation platform with Git sync, Markdown/Mermaid rendering, fu
 | [Admin guide](en/admin/README.md) | [Руководство администратора](ru/admin/README.md) |
 | [Operations](en/operator/README.md) | [Эксплуатация](ru/operator/README.md) |
 | [Reference](en/reference/README.md) | [Справочник](ru/reference/README.md) |
+| [Roadmap / phases](en/reference/roadmap.md) | [Дорожная карта](ru/reference/roadmap.md) |

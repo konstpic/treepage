@@ -23,7 +23,6 @@ import (
 	"github.com/konstpic/treepage/backend/pkg/middleware"
 	"go.uber.org/zap"
 	"golang.org/x/oauth2"
-	"gorm.io/gorm/logger"
 )
 
 type AppConfig struct {
@@ -53,13 +52,14 @@ func main() {
 		panic("JWT_SECRET is required")
 	}
 
-	log, err := logging.New(cfg.Logging.Level)
+	logLevel := logging.ResolveLevel(cfg.Logging.Level)
+	log, err := logging.New(logLevel)
 	if err != nil {
 		panic(err)
 	}
 	defer log.Sync()
 
-	db, err := database.Connect(cfg.Postgres, logger.Info)
+	db, err := database.Connect(cfg.Postgres, logging.GormLogLevel(logLevel))
 	if err != nil {
 		log.Fatal("database connection failed", zap.Error(err))
 	}
@@ -104,9 +104,7 @@ func main() {
 	r.Use(middleware.SecureHeaders())
 	r.Use(middleware.CORS(cfg.Security.AllowedOrigins))
 	r.Use(middleware.RateLimit(cfg.Security.RateLimitRPS))
-	r.Use(middleware.RequestLogger(func(method, path string, status int, latency time.Duration) {
-		log.Info("request", zap.String("method", method), zap.String("path", path), zap.Int("status", status), zap.Duration("latency", latency))
-	}))
+	r.Use(middleware.AccessLogger(logLevel, middleware.ZapAccessLog(log)))
 
 	h := health.NewHandler(func(ctx context.Context) error {
 		return database.Ping(ctx, db)

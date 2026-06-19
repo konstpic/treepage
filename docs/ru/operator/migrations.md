@@ -26,7 +26,7 @@ SQL-миграции находятся в `migrations/`.
 
 ## Автоматическое применение
 
-Все файлы `migrations/*_up.sql` применяются **автоматически** при старте `backend-server`:
+Все файлы `migrations/*.up.sql` применяются **автоматически** при старте `backend-server`:
 
 1. Сканируется папка `migrations/` (env `MIGRATIONS_DIR`, по умолчанию `/app/migrations` в Docker)
 2. Файлы сортируются по имени (`001_…`, `002_…`, …, `100_…`)
@@ -50,7 +50,7 @@ export MIGRATIONS_DIR=migrations
 # через backend-server при старте — предпочтительно
 
 # или вручную одной командой (legacy):
-for f in migrations/*_up.sql; do
+for f in migrations/*.up.sql; do
   echo "Applying $f..."
   psql -h <host> -U treepage -d treepage -f "$f"
 done

@@ -33,6 +33,7 @@ services:
       DEV_MODE: "true"
       ENV: dev
       DB_PASSWORD: treepage
+      LOG_LEVEL: ${LOG_LEVEL:-info}
       JWT_SECRET: dev-jwt-secret-change-in-production
       OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-}
       CSRF_SECRET: dev-csrf-secret
@@ -56,6 +57,7 @@ services:
     environment:
       CONFIG_PATH: /opt/app/conf/config.yml
       DB_PASSWORD: treepage
+      LOG_LEVEL: ${LOG_LEVEL:-info}
       JWT_SECRET: dev-jwt-secret-change-in-production
       SYNC_SERVICE_URL: http://backend-sync:8083
       INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-dev-internal-token-change-in-production}
@@ -86,6 +88,7 @@ services:
     environment:
       CONFIG_PATH: /opt/app/conf/config.yml
       DB_PASSWORD: treepage
+      LOG_LEVEL: ${LOG_LEVEL:-info}
       GIT_ACCESS_TOKEN: ${GIT_ACCESS_TOKEN:-}
       GIT_WEBHOOK_SECRET: ${GIT_WEBHOOK_SECRET:-dev-webhook-secret}
       INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-dev-internal-token-change-in-production}

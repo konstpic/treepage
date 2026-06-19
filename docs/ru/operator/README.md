@@ -12,6 +12,7 @@
 | Backup / restore | [Резервное копирование](backup-restore.md) |
 | Health checks и метрики | [Мониторинг](monitoring.md) |
 | Диагностика проблем | [Устранение неполадок](troubleshooting.md) |
+| Дорожная карта (фазы 1–3) | [Roadmap](../reference/roadmap.md) |
 
 ## Компоненты
 

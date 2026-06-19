@@ -75,6 +75,46 @@ Env override for sync service URL:
 
 ```bash
 SYNC_SERVICE_URL=http://treepage-backend-sync:8083
+INTERNAL_SERVICE_TOKEN=your-long-random-secret
+```
+
+## LLM and RAG (phase 3 + Search & RAG)
+
+On `backend-server`:
+
+```bash
+# Chat (books, translation, RAG answers)
+LLM_ENABLED=true
+LLM_API_URL=http://192.168.0.64:11434/v1   # Ollama
+LLM_MODEL=llama3.2:latest
+LLM_API_KEY=                              # empty for local Ollama
+
+# Embeddings (hybrid RAG retrieval)
+EMBEDDING_ENABLED=true
+EMBEDDING_MODEL=nomic-embed-text           # ollama pull nomic-embed-text
+```
+
+OpenAI example:
+
+```bash
+LLM_API_URL=https://api.openai.com/v1
+LLM_API_KEY=sk-...
+LLM_MODEL=gpt-4o-mini
+EMBEDDING_MODEL=text-embedding-3-small
+```
+
+## Search backend (phase 2)
+
+```bash
+SEARCH_BACKEND=postgres          # default
+# SEARCH_BACKEND=opensearch
+# OPENSEARCH_URL=http://opensearch:9200
+```
+
+## Migrations
+
+```bash
+MIGRATIONS_DIR=/app/migrations   # default in server Docker image
 ```
 
 ## backend-sync

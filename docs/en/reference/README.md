@@ -8,7 +8,8 @@ Technical documentation for developers, integrators, and operators.
 
 | Document | Description |
 |----------|-------------|
-| [Architecture](architecture.md) | Microservices, auth flow, RBAC, search, security |
+| [Architecture](architecture.md) | Microservices, auth flow, RBAC, search, RAG, security |
+| [Roadmap (phases)](roadmap.md) | Phases 1–3, Search & RAG, platform |
 | [Helm deployment (details)](helm-deployment.md) | Charts, install modes, migration from legacy |
 | [REST API](api.md) | OpenAPI endpoints overview |
 | [Frontend analysis](frontend-analysis.md) | Design system reference (for UI developers) |

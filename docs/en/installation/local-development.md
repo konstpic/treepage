@@ -16,14 +16,13 @@ Run services directly on the developer machine.
 createuser -P treepage   # password: treepage (or your own)
 createdb -O treepage treepage
 
-# Apply migrations
-export PGPASSWORD=treepage
-for f in migrations/*_up.sql; do
+# Apply migrations (legacy — prefer auto migrator on server startup)
+for f in migrations/*.up.sql; do
   psql -U treepage -d treepage -f "$f"
 done
 ```
 
-> Migration order: `001`, `002`, `003`, `005`, `006`, `007`, `008`, `009`, `010`, `011`.
+> Migrations `001`–`016` (see [Roadmap](en/reference/roadmap.md)). Prefer starting `backend-server` — it applies pending migrations automatically via `schema_migrations`.
 
 ## Step 2. Environment variables
 

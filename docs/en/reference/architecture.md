@@ -13,7 +13,7 @@ flowchart TB
     end
 
     subgraph Core
-        SRV[backend-server<br/>Docs API + Search]
+        SRV[backend-server<br/>Docs API + Search + RAG]
         SYNC[backend-sync<br/>Git Sync Worker]
     end
 
@@ -44,7 +44,7 @@ flowchart TB
 |---------|------------|----------------|
 | frontend | 5173 | UI, markdown/mermaid, admin panel |
 | backend-auth | 8081 | OIDC, JWT issue/refresh, user sync |
-| backend-server | 8082 | Spaces, documents, search, RBAC, admin API |
+| backend-server | 8082 | Spaces, documents, search, RAG, RBAC, admin API |
 | backend-sync | 8083 | Git clone, parse, index, webhooks |
 | postgres | 5432 | Primary datastore |
 | redis | 6379 | Cache (optional) |
@@ -104,20 +104,45 @@ Details: [RBAC](../admin/rbac.md)
 
 ## Search Architecture
 
-- **Phase 1:** PostgreSQL `tsvector` full-text search on title, content, tags.
-- **Phase 2:** OpenSearch adapter (interface in `backend/server/internal/search`).
+### Full-text search (Phase 1+)
 
-Search fields: title, content, tags, repository, author.
+PostgreSQL `tsvector` on title, content, tags. Permission-aware: only spaces and pages the user can read.
+
+### Multilingual FTS (015)
+
+Configs `english`, `russian`, `simple` — Cyrillic and Latin queries in search and RAG retrieval.
+
+### RAG (Phase 3 + 016)
+
+```
+User question → retrieval (FTS + keywords + ILIKE + vector)
+             → rank + page ACL filter
+             → LLM (OpenAI-compatible)
+             → answer + sources + citations + confidence
+```
+
+- Chunks: `document_chunks` (indexed on Git sync, backfill on startup)
+- Embeddings: optional hybrid search (`EMBEDDING_ENABLED`)
+- Feedback: `POST /api/rag/feedback` → learned synonyms
+- UI: `/search` → **Ask documentation**
+
+Details: [Roadmap](roadmap.md), [Search](../user/search.md).
+
+### OpenSearch (Phase 2, opt-in)
+
+`SEARCH_BACKEND=opensearch` + `OPENSEARCH_URL` — adapter in `backend/server/internal/search` (currently delegates to PostgreSQL).
 
 ## Git Sync Architecture
 
 ```
-Git Repo → backend-sync (clone + parse) → PostgreSQL (documents)
+Git Repo → backend-sync (clone + parse + RAG index) → PostgreSQL (documents, document_chunks)
                 ↑
     scheduled / manual / webhook triggers
 ```
 
-Server proxies sync requests to sync worker via `SYNC_SERVICE_URL`.
+- **Phase 1:** documents with `has_pending_changes` are skipped (not overwritten)
+- **Phase 2:** orphan documents removed after sync (except pending changes)
+- Server proxies sync via `SYNC_SERVICE_URL` + `INTERNAL_SERVICE_TOKEN`
 
 ## Configuration
 
@@ -141,9 +166,11 @@ All Go services expose:
 ## Security
 
 - JWT validation on all protected routes
+- **INTERNAL_SERVICE_TOKEN** between server and sync (Phase 1)
 - CSRF token for OIDC state
 - Rate limiting (in-memory or Redis)
 - Audit log for admin actions
+- **Page ACL** — permissions below space level (Phase 3)
 - Secure headers (HSTS, X-Frame-Options, CSP)
 - Secrets only via ENV
 
@@ -151,16 +178,31 @@ All Go services expose:
 
 | Environment | Tool |
 |-------------|------|
-| Local dev | Docker Compose + hot reload |
+| Local dev | Docker Compose (pre-built backend + Vite frontend) |
 | Production | Open-source Helm charts (`backend/`, `.helm/frontend/`) |
 
-See [Kubernetes / Helm](../installation/kubernetes.md), [Helm deployment](helm-deployment.md).
+See [Docker Compose](../installation/docker-compose.md), [Kubernetes / Helm](../installation/kubernetes.md), [Helm deployment](helm-deployment.md).
 
 ## LLM Integration
 
-Optional OpenAI-compatible API for:
+OpenAI-compatible API (`LLM_*` env) on **backend-server**:
 
-- AI book generation (structure + introduction)
-- Document auto-translation
+| Use case | Phase |
+|----------|-------|
+| AI book generation | Core |
+| Document auto-translation | Core |
+| RAG answers (`/api/rag/ask`) | 3 + 016 |
+| Query expansion for retrieval | 016 |
+| Embeddings (`EMBEDDING_*`) | 016 |
 
-Configured via `LLM_*` env vars on backend-server.
+Local Ollama example:
+
+```bash
+LLM_ENABLED=true
+LLM_API_URL=http://host.docker.internal:11434/v1
+LLM_MODEL=llama3.2:latest
+EMBEDDING_ENABLED=true
+EMBEDDING_MODEL=nomic-embed-text
+```
+
+See [Configuration](../operator/configuration.md), [Roadmap](roadmap.md).

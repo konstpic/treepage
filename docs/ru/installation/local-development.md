@@ -16,14 +16,13 @@
 createuser -P treepage   # пароль: treepage (или свой)
 createdb -O treepage treepage
 
-# Применить миграции
-export PGPASSWORD=treepage
-for f in migrations/*_up.sql; do
+# Применить миграции (legacy — предпочтительно автомигратор при старте server)
+for f in migrations/*.up.sql; do
   psql -U treepage -d treepage -f "$f"
 done
 ```
 
-> Порядок миграций: `001`, `002`, `003`, `005`, `006`, `007`, `008`, `009`, `010`, `011`.
+> Порядок миграций `001`–`016` (см. [Дорожная карта](ru/reference/roadmap.md)). Предпочтительно запускать `backend-server` — он применит pending-миграции через `schema_migrations`.
 
 ## Шаг 2. Переменные окружения
 

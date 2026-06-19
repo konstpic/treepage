@@ -2,7 +2,7 @@
 
 **Language:** English · [Русский](../ru/README.md)
 
-**TreePage** is a self-hosted documentation platform with Git synchronization, Markdown and Mermaid rendering, full-text search, RBAC, and OIDC authentication.
+**TreePage** is a self-hosted documentation platform with Git synchronization, Markdown and Mermaid rendering, full-text and RAG search, RBAC, and OIDC authentication.
 
 **Repository:** [github.com/konstpic/treepage](https://github.com/konstpic/treepage)
 
@@ -78,6 +78,7 @@ Configuration, secrets, migrations, monitoring, troubleshooting.
 Technical documentation for developers and integrators.
 
 - [Architecture](reference/architecture.md)
+- [Roadmap (phases 1–3, RAG)](reference/roadmap.md)
 - [Helm deployment (details)](reference/helm-deployment.md)
 - [REST API](reference/api.md)
 
@@ -87,7 +88,7 @@ Technical documentation for developers and integrators.
 
 ```
 frontend (React)  →  backend-auth (OIDC/JWT)
-                  →  backend-server (Docs API, Search, Admin)
+                  →  backend-server (Docs API, Search, RAG, Admin)
                   →  backend-sync (Git sync worker)
                   →  PostgreSQL
 ```

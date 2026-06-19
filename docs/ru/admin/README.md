@@ -14,6 +14,8 @@
 | [Группы](groups.md) | `/admin/groups` | admin |
 | [Настройки системы](settings.md) | `/admin/settings` | admin (запись: super_admin) |
 | [OIDC-провайдеры](oidc.md) | `/admin/oidc` | super_admin |
+| Аналитика | `/admin/analytics` | admin |
+| Аудит | `/admin/audit` | super_admin |
 
 ## Системные роли
 

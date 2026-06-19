@@ -18,6 +18,8 @@ TreePage is a platform for reading and editing documentation synchronized from G
 | Documentation spaces | [Spaces](spaces.md) |
 | Reading pages | [Reading documents](reading-docs.md) |
 | Full-text search | [Search](search.md) |
+| RAG — ask documentation | [Search — RAG](search.md) |
+| My pages (favorites) | `/me` |
 | Editing | [Editing documents](editing-docs.md) |
 | AI documentation compilations | [Books](books.md) |
 

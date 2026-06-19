@@ -21,14 +21,52 @@
 | `GIT_ACCESS_TOKEN` | sync | HTTPS token for Git |
 | `GIT_WEBHOOK_SECRET` | sync | Secret for webhook validation |
 
-## LLM (optional)
+## Logging
+
+| Variable | Services | Description |
+|----------|----------|-------------|
+| `LOG_LEVEL` | auth, server, sync | `debug`, `info` (default), `warn`, `error` |
+| `LOGGING_LEVEL` | auth, server, sync | Same via config env mapping |
+
+| `LOG_LEVEL` | App logs | SQL (GORM) | HTTP access |
+|-------------|----------|------------|-------------|
+| `debug` | all | every query | all requests |
+| `info` | info+ | slow queries + errors only | 4xx/5xx only |
+| `warn` | warn+ | SQL errors only | 5xx only |
+| `error` | errors only | silent | 5xx only |
+
+Health probes are never access-logged.
+
+## LLM and RAG (optional)
 
 | Variable | Service | Description |
 |----------|---------|-------------|
 | `LLM_ENABLED` | server | `true` / `false` |
-| `LLM_API_URL` | server | OpenAI-compatible API URL |
-| `LLM_API_KEY` | server | API key |
+| `LLM_API_URL` | server | OpenAI-compatible URL (Ollama: `http://host:11434/v1`) |
+| `LLM_API_KEY` | server | API key (not required for local Ollama) |
 | `LLM_MODEL` | server | Model name |
+| `EMBEDDING_ENABLED` | server | `true` — hybrid vector + FTS in RAG |
+| `EMBEDDING_MODEL` | server | Embedding model (`nomic-embed-text` for Ollama) |
+
+## Phase 1 — Sync security
+
+| Variable | Service | Description |
+|----------|---------|-------------|
+| `INTERNAL_SERVICE_TOKEN` | server, sync | Shared token for sync API calls |
+| `REDIS_ADDR` | auth | Redis for OIDC state (multiple auth replicas) |
+
+## Phase 2 — Search backend
+
+| Variable | Service | Description |
+|----------|---------|-------------|
+| `SEARCH_BACKEND` | server | `postgres` (default) or `opensearch` |
+| `OPENSEARCH_URL` | server | OpenSearch URL (if enabled) |
+
+## Migrations
+
+| Variable | Service | Description |
+|----------|---------|-------------|
+| `MIGRATIONS_DIR` | server | SQL migrations folder (default `/app/migrations` in Docker) |
 
 ## Dev mode
 
@@ -43,6 +81,8 @@
 |----------|---------|-------------|
 | `CONFIG_PATH` | all | Path to config.yml |
 | `SYNC_SERVICE_URL` | server | Sync worker URL |
+| `INTERNAL_SERVICE_TOKEN` | server, sync | Internal sync API token (Phase 1) |
+| `ATTACHMENTS_DIR` | server | Path for uploaded attachments (Phase 2) |
 
 ## Kubernetes Secret
 

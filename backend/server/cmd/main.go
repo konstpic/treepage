@@ -26,7 +26,6 @@ import (
 	"github.com/konstpic/treepage/backend/server/internal/service"
 	"github.com/konstpic/treepage/backend/server/internal/syncclient"
 	"go.uber.org/zap"
-	"gorm.io/gorm/logger"
 )
 
 type AppConfig struct {
@@ -54,10 +53,11 @@ func main() {
 		panic("JWT_SECRET is required")
 	}
 
-	log, _ := logging.New(cfg.Logging.Level)
+	logLevel := logging.ResolveLevel(cfg.Logging.Level)
+	log, _ := logging.New(logLevel)
 	defer log.Sync()
 
-	db, err := database.Connect(cfg.Postgres, logger.Info)
+	db, err := database.Connect(cfg.Postgres, logging.GormLogLevel(logLevel))
 	if err != nil {
 		log.Fatal("database connection failed", zap.Error(err))
 	}
@@ -350,6 +350,7 @@ func main() {
 	r.Use(middleware.SecureHeaders())
 	r.Use(middleware.CORS(cfg.Security.AllowedOrigins))
 	r.Use(middleware.RateLimit(cfg.Security.RateLimitRPS))
+	r.Use(middleware.AccessLogger(logLevel, middleware.ZapAccessLog(log)))
 
 	h := health.NewHandler(func(ctx context.Context) error {
 		return database.Ping(ctx, db)

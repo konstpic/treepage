@@ -14,7 +14,7 @@ git:
   work_dir: /tmp/treepage-repos
 
 logging:
-  level: info
+  level: info   # debug | info | warn | error — override via LOG_LEVEL env
 
 security:
   rate_limit_rps: 50

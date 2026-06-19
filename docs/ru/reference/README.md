@@ -8,7 +8,8 @@
 
 | Документ | Описание |
 |----------|----------|
-| [Архитектура](architecture.md) | Микросервисы, auth flow, RBAC, search, security |
+| [Архитектура](architecture.md) | Микросервисы, auth flow, RBAC, search, RAG, security |
+| [Дорожная карта (фазы)](roadmap.md) | Фазы 1–3, Search & RAG, platform |
 | [Helm deployment (детали)](helm-deployment.md) | Charts, install modes, migration from legacy |
 | [REST API](api.md) | OpenAPI endpoints overview |
 | [Frontend analysis](frontend-analysis.md) | Design system reference (для разработчиков UI) |

@@ -14,7 +14,7 @@ jwt:
   audience: treepage
 
 logging:
-  level: info
+  level: info   # debug | info | warn | error — override via LOG_LEVEL env
 
 security:
   rate_limit_rps: 200

@@ -26,7 +26,7 @@ SQL migrations are in `migrations/`.
 
 ## Automatic application
 
-All `migrations/*_up.sql` files are applied **automatically** when `backend-server` starts:
+All `migrations/*.up.sql` files are applied **automatically** when `backend-server` starts:
 
 1. Scans `migrations/` (`MIGRATIONS_DIR`, default `/app/migrations` in Docker)
 2. Sorts files by name (`001_…` through `100_…`)
@@ -49,7 +49,7 @@ export PGPASSWORD=<password>
 # Prefer starting backend-server (runs migrator automatically)
 
 # Legacy loop:
-for f in migrations/*_up.sql; do
+for f in migrations/*.up.sql; do
   echo "Applying $f..."
   psql -h <host> -U treepage -d treepage -f "$f"
 done

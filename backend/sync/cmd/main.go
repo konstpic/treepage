@@ -19,7 +19,6 @@ import (
 	"github.com/konstpic/treepage/backend/pkg/middleware"
 	"github.com/konstpic/treepage/backend/sync/internal/syncer"
 	"go.uber.org/zap"
-	"gorm.io/gorm/logger"
 )
 
 type AppConfig struct {
@@ -39,10 +38,11 @@ func main() {
 		panic(err)
 	}
 
-	log, _ := logging.New(cfg.Logging.Level)
+	logLevel := logging.ResolveLevel(cfg.Logging.Level)
+	log, _ := logging.New(logLevel)
 	defer log.Sync()
 
-	db, err := database.Connect(cfg.Postgres, logger.Info)
+	db, err := database.Connect(cfg.Postgres, logging.GormLogLevel(logLevel))
 	if err != nil {
 		log.Fatal("database connection failed", zap.Error(err))
 	}
@@ -72,6 +72,7 @@ func main() {
 	r.Use(gin.Recovery())
 	r.Use(middleware.SecureHeaders())
 	r.Use(middleware.RateLimit(cfg.Security.RateLimitRPS))
+	r.Use(middleware.AccessLogger(logLevel, middleware.ZapAccessLog(log)))
 
 	h := health.NewHandler(func(c context.Context) error {
 		return database.Ping(c, db)

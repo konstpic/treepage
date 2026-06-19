@@ -12,6 +12,7 @@ Documentation for DevOps and platform operators.
 | Backup / restore | [Backup and restore](backup-restore.md) |
 | Health checks and metrics | [Monitoring](monitoring.md) |
 | Problem diagnosis | [Troubleshooting](troubleshooting.md) |
+| Roadmap (phases 1–3) | [Roadmap](../reference/roadmap.md) |
 
 ## Components
 
