@@ -1,6 +1,6 @@
 <p align="center">
   <a href="https://github.com/konstpic/treepage">
-    <img src="preview/image_main.png" alt="TreePage" width="480" />
+    <img src="preview/image_main.png" alt="TreePage" width="860" />
   </a>
 </p>
 
