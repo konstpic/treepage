@@ -75,6 +75,7 @@ func (h *Handler) Register(r *gin.Engine) {
 		apiAuth.POST("/spaces", h.RequireRoles("super_admin", "admin"), h.CreateSpace)
 		apiAuth.POST("/spaces/:slug/documents", h.CreateDocument)
 		apiAuth.PUT("/documents/:id", h.UpdateDocument)
+		apiAuth.POST("/documents/:id/publish", h.PublishDocument)
 		apiAuth.GET("/documents/:id/versions", h.ListDocumentVersions)
 		apiAuth.GET("/documents/:id/versions/:version/diff", h.DiffDocumentVersions)
 		apiAuth.GET("/documents/:id/versions/:version", h.GetDocumentVersion)

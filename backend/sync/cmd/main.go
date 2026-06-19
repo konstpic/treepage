@@ -71,6 +71,20 @@ func main() {
 	})
 	h.Register(r)
 
+	r.POST("/api/sync/repositories/:id/publish", func(c *gin.Context) {
+		var input syncer.PublishInput
+		if err := c.ShouldBindJSON(&input); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		result, err := syncSvc.PublishDocument(c.Request.Context(), c.Param("id"), input)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, result)
+	})
+
 	r.POST("/api/sync/repositories/:id", func(c *gin.Context) {
 		id := c.Param("id")
 		if err := syncSvc.SyncRepository(c.Request.Context(), id, "manual"); err != nil {

@@ -5,6 +5,7 @@ import { Edit3, Languages, Loader2 } from "lucide-react";
 import { api, ApiError, optionalAuthApi } from "@/lib/api";
 import { MarkdownRenderer } from "@/components/markdown-renderer";
 import { DocumentEditor } from "@/components/document-editor";
+import type { PublishPRInput } from "@/components/publish-pr-dialog";
 import { DocBreadcrumbs } from "@/components/doc-breadcrumbs";
 import { DocumentHistory } from "@/components/document-history";
 import { FadeIn } from "@/components/motion-wrapper";
@@ -30,6 +31,18 @@ interface SpaceMeta {
   can_edit?: boolean;
 }
 
+interface Repository {
+  id: string;
+  branch: string;
+}
+
+interface PublishResult {
+  branch: string;
+  commit_sha?: string;
+  pr_url?: string;
+  message?: string;
+}
+
 export function DocumentPage() {
   const { slug, docSlug } = useParams<{ slug: string; docSlug: string }>();
   const { t, localeId } = useI18n();
@@ -38,6 +51,8 @@ export function DocumentPage() {
   const [editTitle, setEditTitle] = useState("");
   const [editContent, setEditContent] = useState("");
   const [saveError, setSaveError] = useState("");
+  const [publishError, setPublishError] = useState("");
+  const [publishNotice, setPublishNotice] = useState("");
 
   const { data: space } = useQuery({
     queryKey: ["space", slug],
@@ -65,6 +80,14 @@ export function DocumentPage() {
     enabled: !!slug,
   });
 
+  const { data: repos } = useQuery({
+    queryKey: ["repositories", slug],
+    queryFn: () => optionalAuthApi<{ items: Repository[] }>(`/api/spaces/${slug}/repositories`),
+    enabled: !!slug && editing && !!doc?.repository_id,
+  });
+
+  const linkedRepo = repos?.items.find((r) => r.id === doc?.repository_id);
+
   const saveDoc = useMutation({
     mutationFn: () =>
       api<Document>(`/api/documents/${doc!.id}`, {
@@ -81,12 +104,43 @@ export function DocumentPage() {
     onError: (e) => setSaveError(e instanceof ApiError ? e.message : t("common.failed")),
   });
 
+  const publishPR = useMutation({
+    mutationFn: (input: PublishPRInput) =>
+      api<PublishResult>(`/api/documents/${doc!.id}/publish`, {
+        method: "POST",
+        body: JSON.stringify({
+          title: editTitle,
+          content: editContent,
+          branch: input.branch,
+          commit_message: input.commitMessage,
+          pr_title: input.prTitle,
+          pr_body: input.prBody,
+        }),
+      }),
+    onSuccess: (result) => {
+      qc.invalidateQueries({ queryKey: ["document", slug, docSlug] });
+      qc.invalidateQueries({ queryKey: ["doc-versions", doc!.id] });
+      setPublishError("");
+      if (result.pr_url) {
+        setPublishNotice(t("documentEditor.publishSuccessPr", { url: result.pr_url }));
+      } else if (result.message) {
+        setPublishNotice(result.message);
+      } else {
+        setPublishNotice(t("documentEditor.publishSuccessPush", { branch: result.branch }));
+      }
+    },
+    onError: (e) =>
+      setPublishError(e instanceof ApiError ? e.message : t("documentEditor.publishFailed")),
+  });
+
   function startEdit() {
     if (!doc) return;
     setEditTitle(doc.title);
     setEditContent(doc.content);
     setEditing(true);
     setSaveError("");
+    setPublishError("");
+    setPublishNotice("");
   }
 
   if (isLoading) {
@@ -148,16 +202,29 @@ export function DocumentPage() {
         {editing ? (
           <>
             {saveError && <p className="mb-3 text-sm text-danger-soft">{saveError}</p>}
+            {publishNotice && (
+              <p className="mb-3 rounded-xl border border-default bg-surface-muted px-4 py-3 text-sm text-fg">
+                {publishNotice}
+              </p>
+            )}
             <DocumentEditor
               title={editTitle}
               content={editContent}
               path={doc.path}
               spaceSlug={slug!}
               gitHint={doc.repository_id ? doc.path : undefined}
+              gitLinked={!!doc.repository_id}
+              defaultBranch={linkedRepo?.branch ?? "main"}
+              documents={allDocs?.items ?? []}
               saving={saveDoc.isPending}
+              publishing={publishPR.isPending}
+              publishError={publishError}
               onTitleChange={setEditTitle}
               onContentChange={setEditContent}
               onSave={() => saveDoc.mutate()}
+              onPublishPR={async (input) => {
+                await publishPR.mutateAsync(input);
+              }}
               onCancel={() => setEditing(false)}
             />
           </>

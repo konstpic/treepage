@@ -1,7 +1,10 @@
 import { useState } from "react";
-import { Eye, Loader2, Save } from "lucide-react";
+import { Eye, GitPullRequest, Loader2, Save } from "lucide-react";
 import { MarkdownRenderer } from "@/components/markdown-renderer";
+import { MarkdownEditor } from "@/components/markdown-editor";
+import { PublishPRDialog, type PublishPRInput } from "@/components/publish-pr-dialog";
 import { useI18n } from "@/lib/i18n";
+import type { LinkDoc } from "@/lib/wiki-markdown";
 
 interface DocumentEditorProps {
   title: string;
@@ -9,10 +12,16 @@ interface DocumentEditorProps {
   path: string;
   spaceSlug: string;
   gitHint?: string;
+  gitLinked?: boolean;
+  defaultBranch?: string;
+  documents?: LinkDoc[];
   saving?: boolean;
+  publishing?: boolean;
+  publishError?: string;
   onTitleChange: (title: string) => void;
   onContentChange: (content: string) => void;
   onSave: () => void;
+  onPublishPR?: (input: PublishPRInput) => void | Promise<void>;
   onCancel: () => void;
 }
 
@@ -22,28 +31,46 @@ export function DocumentEditor({
   path,
   spaceSlug,
   gitHint,
+  gitLinked,
+  defaultBranch = "main",
+  documents = [],
   saving,
+  publishing,
+  publishError,
   onTitleChange,
   onContentChange,
   onSave,
+  onPublishPR,
   onCancel,
 }: DocumentEditorProps) {
   const { t } = useI18n();
   const [preview, setPreview] = useState(false);
+  const [prOpen, setPrOpen] = useState(false);
 
   return (
     <div className="space-y-4">
       {gitHint && (
         <div className="rounded-xl border border-default bg-surface-muted px-4 py-3 text-sm text-muted">
-          {t("document.gitHint", { path: gitHint })}
+          {t("document.gitHintPublish", { path: gitHint })}
         </div>
       )}
       <div className="flex flex-wrap items-center gap-2">
-        <button type="button" className="btn-primary" disabled={saving} onClick={onSave}>
+        <button type="button" className="btn-primary" disabled={saving || publishing} onClick={onSave}>
           {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-          {t("common.save")}
+          {t("documentEditor.saveLocal")}
         </button>
-        <button type="button" className="btn-secondary" onClick={onCancel}>
+        {gitLinked && onPublishPR && (
+          <button
+            type="button"
+            className="btn-secondary"
+            disabled={saving || publishing}
+            onClick={() => setPrOpen(true)}
+          >
+            <GitPullRequest className="h-4 w-4" />
+            {t("documentEditor.publishPr")}
+          </button>
+        )}
+        <button type="button" className="btn-secondary" disabled={saving || publishing} onClick={onCancel}>
           {t("common.cancel")}
         </button>
         <button
@@ -64,17 +91,35 @@ export function DocumentEditor({
       <p className="text-xs text-subtle">{path}</p>
       {preview ? (
         <div className="glass min-h-[20rem] p-6">
-          <MarkdownRenderer content={content} spaceSlug={spaceSlug} documents={[]} docPath={path} />
+          <MarkdownRenderer
+            content={content}
+            spaceSlug={spaceSlug}
+            documents={documents}
+            docPath={path}
+          />
         </div>
       ) : (
-        <textarea
-          className="input-field min-h-[28rem] resize-y font-mono text-sm leading-relaxed"
+        <MarkdownEditor
           value={content}
-          onChange={(e) => onContentChange(e.target.value)}
-          spellCheck={false}
-          aria-label={t("document.contentLabel")}
+          onChange={onContentChange}
+          documents={documents}
+          ariaLabel={t("document.contentLabel")}
         />
       )}
+
+      <PublishPRDialog
+        open={prOpen}
+        docTitle={title}
+        docPath={path}
+        defaultBranch={defaultBranch}
+        publishing={publishing}
+        error={publishError}
+        onClose={() => setPrOpen(false)}
+        onPublish={async (input) => {
+          await onPublishPR?.(input);
+          setPrOpen(false);
+        }}
+      />
     </div>
   );
 }

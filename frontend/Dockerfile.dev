@@ -5,4 +5,5 @@ COPY package.json package-lock.json* ./
 RUN npm install
 COPY . .
 EXPOSE 5173
-CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
+# Re-install on start so new deps from mounted package.json land in /app/node_modules volume
+CMD ["sh", "-c", "npm install && npm run dev -- --host 0.0.0.0"]

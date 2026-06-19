@@ -383,3 +383,41 @@ body {
     transform: scale(1.04);
   }
 }
+
+.editor-toolbar__btn {
+  @apply inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted transition-colors;
+}
+.editor-toolbar__btn:hover:not(:disabled) {
+  @apply bg-surface text-fg;
+}
+.editor-toolbar__btn:disabled {
+  @apply opacity-40;
+}
+
+.markdown-editor__codemirror {
+  @apply overflow-hidden rounded-b-xl border border-default;
+}
+.markdown-editor__codemirror .cm-editor {
+  @apply bg-surface text-fg;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.875rem;
+}
+.markdown-editor__codemirror .cm-scroller {
+  min-height: 28rem;
+}
+.markdown-editor__codemirror .cm-gutters {
+  @apply border-r border-default bg-surface-muted text-subtle;
+}
+.markdown-editor__codemirror .cm-activeLine {
+  background: rgb(var(--primary) / 0.04);
+}
+
+.editor-context-menu {
+  @apply fixed z-[2000] min-w-[11rem] overflow-hidden rounded-xl border border-default bg-surface py-1 shadow-xl;
+}
+.editor-context-menu__item {
+  @apply block w-full px-3 py-2 text-left text-sm text-fg transition-colors hover:bg-surface-muted;
+}
+.editor-context-menu__item:disabled {
+  @apply opacity-40;
+}
