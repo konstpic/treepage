@@ -5,7 +5,10 @@ ENV GOWORK=off
 COPY backend/pkg ./backend/pkg
 COPY backend/auth ./backend/auth
 WORKDIR /app/backend/auth
-RUN go mod download && CGO_ENABLED=0 go build -o /treepage-auth ./cmd
+RUN echo ">>> treepage-auth: go mod download..." && \
+    go mod download && \
+    echo ">>> treepage-auth: compiling (1-3 min, packages listed below)..." && \
+    CGO_ENABLED=0 go build -v -o /treepage-auth ./cmd
 
 FROM alpine:3.20
 RUN apk add --no-cache ca-certificates wget

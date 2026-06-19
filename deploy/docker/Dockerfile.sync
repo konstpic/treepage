@@ -5,7 +5,10 @@ ENV GOWORK=off
 COPY backend/pkg ./backend/pkg
 COPY backend/sync ./backend/sync
 WORKDIR /app/backend/sync
-RUN go mod download && CGO_ENABLED=0 go build -o /treepage-sync ./cmd
+RUN echo ">>> treepage-sync: go mod download..." && \
+    go mod download && \
+    echo ">>> treepage-sync: compiling (1-3 min, packages listed below)..." && \
+    CGO_ENABLED=0 go build -v -o /treepage-sync ./cmd
 
 FROM alpine:3.20
 RUN apk add --no-cache ca-certificates git wget

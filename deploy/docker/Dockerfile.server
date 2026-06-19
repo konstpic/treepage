@@ -5,7 +5,10 @@ ENV GOWORK=off
 COPY backend/pkg ./backend/pkg
 COPY backend/server ./backend/server
 WORKDIR /app/backend/server
-RUN go mod download && CGO_ENABLED=0 go build -o /treepage-server ./cmd
+RUN echo ">>> treepage-server: go mod download..." && \
+    go mod download && \
+    echo ">>> treepage-server: compiling (1-3 min, packages listed below)..." && \
+    CGO_ENABLED=0 go build -v -o /treepage-server ./cmd
 
 FROM alpine:3.20
 RUN apk add --no-cache ca-certificates wget

@@ -204,6 +204,37 @@ helm lint backend --strict
 
 ## Docker Compose
 
+### `docker build` «зависает» на `go build`
+
+**Не зависание.** Classic Docker builder не показывает прогресс внутри `RUN go build` — компиляция идёт 1–3 минуты на backend.
+
+После `git pull` в Dockerfile добавлен `go build -v` — в логе побежит список пакетов:
+
+```
+>>> treepage-server: compiling (1-3 min, packages listed below)...
+github.com/konstpic/treepage/backend/pkg/...
+```
+
+**Быстрее и нагляднее:**
+
+```bash
+# скрипт с подсказками
+./scripts/deploy-dev.sh
+
+# или по шагам
+docker compose -f docker-compose.dev.yml build backend-server   # один сервис
+docker compose -f docker-compose.dev.yml up -d
+```
+
+На слабом сервере не собирайте 3 backend параллельно — по очереди:
+
+```bash
+for s in backend-server backend-auth backend-sync; do
+  docker compose -f docker-compose.dev.yml build "$s"
+done
+docker compose -f docker-compose.dev.yml up -d
+```
+
 ### `listing workers for Build: EOF`
 
 Ошибка BuildKit/Bake в Docker Compose v5 на Docker Desktop — не баг TreePage.
