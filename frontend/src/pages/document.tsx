@@ -1,15 +1,17 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useParams, useNavigate } from "react-router-dom";
-import { Edit3, Languages, Loader2, Trash2 } from "lucide-react";
+import { Edit3, Languages, Loader2, Star, Trash2 } from "lucide-react";
 import { api, ApiError, optionalAuthApi } from "@/lib/api";
 import { MarkdownRenderer } from "@/components/markdown-renderer";
 import { DocumentEditor } from "@/components/document-editor";
+import { DocumentAttachments } from "@/components/document-attachments";
 import type { PublishPRInput } from "@/components/publish-pr-dialog";
 import { DocBreadcrumbs } from "@/components/doc-breadcrumbs";
 import { DocumentHistory } from "@/components/document-history";
 import { FadeIn } from "@/components/motion-wrapper";
 import { formatDate } from "@/lib/utils";
+import { useAuthStore } from "@/lib/store";
 import { useI18n } from "@/lib/i18n";
 
 interface Document {
@@ -22,6 +24,8 @@ interface Document {
   tags?: string[];
   repository_id?: string;
   has_pending_changes?: boolean;
+  is_published?: boolean;
+  is_favorite?: boolean;
   translated?: boolean;
   source_language?: string;
   display_language?: string;
@@ -48,6 +52,7 @@ export function DocumentPage() {
   const { slug, docSlug } = useParams<{ slug: string; docSlug: string }>();
   const navigate = useNavigate();
   const { t, localeId } = useI18n();
+  const { isAuthenticated } = useAuthStore();
   const qc = useQueryClient();
   const [editing, setEditing] = useState(false);
   const [editTitle, setEditTitle] = useState("");
@@ -91,10 +96,14 @@ export function DocumentPage() {
   const linkedRepo = repos?.items.find((r) => r.id === doc?.repository_id);
 
   const saveDoc = useMutation({
-    mutationFn: () =>
+    mutationFn: (opts?: { draft?: boolean }) =>
       api<Document>(`/api/documents/${doc!.id}`, {
         method: "PUT",
-        body: JSON.stringify({ title: editTitle, content: editContent }),
+        body: JSON.stringify({
+          title: editTitle,
+          content: editContent,
+          is_published: opts?.draft ? false : true,
+        }),
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["document", slug, docSlug] });
@@ -104,6 +113,25 @@ export function DocumentPage() {
       setSaveError("");
     },
     onError: (e) => setSaveError(e instanceof ApiError ? e.message : t("common.failed")),
+  });
+
+  const publishLocal = useMutation({
+    mutationFn: () => api(`/api/documents/${doc!.id}/publish-local`, { method: "POST" }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["document", slug, docSlug] });
+      qc.invalidateQueries({ queryKey: ["documents", slug] });
+    },
+  });
+
+  const toggleFavorite = useMutation({
+    mutationFn: (add: boolean) =>
+      add
+        ? api(`/api/me/favorites/${doc!.id}`, { method: "POST" })
+        : api(`/api/me/favorites/${doc!.id}`, { method: "DELETE" }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["document", slug, docSlug] });
+      qc.invalidateQueries({ queryKey: ["favorites"] });
+    },
   });
 
   const publishPR = useMutation({
@@ -179,6 +207,12 @@ export function DocumentPage() {
             {t("document.pendingChanges")}
           </div>
         )}
+        {doc.is_published === false && (
+          <div className="mb-4 rounded-xl border border-default bg-surface-muted px-4 py-3 text-sm text-fg">
+            <span className="badge badge-neutral mr-2">{t("document.draft")}</span>
+            {t("documentEditor.saveDraft")}
+          </div>
+        )}
         {!editing && (
           <header className="mb-6 border-b border-default pb-5">
             <div className="flex flex-wrap items-start justify-between gap-3">
@@ -186,9 +220,23 @@ export function DocumentPage() {
                 <p className="text-xs text-subtle">{doc.path}</p>
                 <h1 className="mt-1 text-2xl font-bold text-fg sm:text-3xl">{doc.title}</h1>
               </div>
-              {canEdit && (
-                <div className="flex items-center gap-1">
-                  <DocumentHistory
+              <div className="flex items-center gap-1">
+                {isAuthenticated && (
+                  <button
+                    type="button"
+                    className="btn-ghost"
+                    title={doc.is_favorite ? t("document.removeFavorite") : t("document.addFavorite")}
+                    disabled={toggleFavorite.isPending}
+                    onClick={() => toggleFavorite.mutate(!doc.is_favorite)}
+                  >
+                    <Star
+                      className={`h-4 w-4 ${doc.is_favorite ? "fill-primary text-primary" : ""}`}
+                    />
+                  </button>
+                )}
+                {canEdit && (
+                  <>
+                    <DocumentHistory
                     documentId={doc.id}
                     canEdit
                     onReverted={() => qc.invalidateQueries({ queryKey: ["document", slug, docSlug] })}
@@ -207,8 +255,9 @@ export function DocumentPage() {
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
-                </div>
-              )}
+                  </>
+                )}
+              </div>
             </div>
             <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-subtle">
               {doc.translated && (
@@ -250,7 +299,11 @@ export function DocumentPage() {
               publishError={publishError}
               onTitleChange={setEditTitle}
               onContentChange={setEditContent}
-              onSave={() => saveDoc.mutate()}
+              onSave={() => saveDoc.mutate({})}
+              onSaveDraft={() => saveDoc.mutate({ draft: true })}
+              onPublishLocal={
+                doc.is_published === false ? () => publishLocal.mutate() : undefined
+              }
               onPublishPR={async (input) => {
                 await publishPR.mutateAsync(input);
               }}
@@ -258,12 +311,15 @@ export function DocumentPage() {
             />
           </>
         ) : (
-          <MarkdownRenderer
-            content={doc.content}
-            spaceSlug={slug}
-            documents={allDocs?.items ?? []}
-            docPath={doc.path}
-          />
+          <>
+            <MarkdownRenderer
+              content={doc.content}
+              spaceSlug={slug}
+              documents={allDocs?.items ?? []}
+              docPath={doc.path}
+            />
+            <DocumentAttachments documentId={doc.id} canEdit={canEdit} />
+          </>
         )}
       </article>
     </FadeIn>

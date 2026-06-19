@@ -69,7 +69,15 @@ func main() {
 	audit := service.NewAuditService(db)
 	admin := service.NewAdminService(db)
 	groups := service.NewGroupService(db)
-	searcher := search.NewPostgresSearcher(db)
+	prefs := service.NewUserPrefsService(db)
+	notifications := service.NewNotificationService(db)
+	attachmentsDir := os.Getenv("ATTACHMENTS_DIR")
+	if attachmentsDir == "" {
+		attachmentsDir = "/data/attachments"
+	}
+	attachments := service.NewAttachmentService(db, attachmentsDir)
+	_ = attachments.EnsureDir()
+	searcher := search.NewFromEnv(db, log)
 
 	llmClient := llm.NewClient(llm.LoadConfigFromEnv(
 		os.Getenv("LLM_ENABLED") == "true",
@@ -188,6 +196,45 @@ func main() {
 	_ = db.Exec(`ALTER TABLE documents ADD COLUMN IF NOT EXISTS last_synced_at TIMESTAMPTZ`).Error
 	_ = db.Exec(`ALTER TABLE sync_jobs ADD COLUMN IF NOT EXISTS conflicts_skipped INT NOT NULL DEFAULT 0`).Error
 
+	_ = db.Exec(`CREATE TABLE IF NOT EXISTS user_favorites (
+		user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+		document_id UUID NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+		created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+		PRIMARY KEY (user_id, document_id)
+	)`).Error
+	_ = db.Exec(`CREATE INDEX IF NOT EXISTS idx_user_favorites_user ON user_favorites(user_id, created_at DESC)`).Error
+	_ = db.Exec(`CREATE TABLE IF NOT EXISTS user_recent_views (
+		user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+		document_id UUID NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+		space_id UUID NOT NULL REFERENCES spaces(id) ON DELETE CASCADE,
+		viewed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+		PRIMARY KEY (user_id, document_id)
+	)`).Error
+	_ = db.Exec(`CREATE INDEX IF NOT EXISTS idx_user_recent_views_user ON user_recent_views(user_id, viewed_at DESC)`).Error
+	_ = db.Exec(`CREATE TABLE IF NOT EXISTS notifications (
+		id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+		user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+		type VARCHAR(64) NOT NULL,
+		title VARCHAR(512) NOT NULL,
+		body TEXT NOT NULL DEFAULT '',
+		resource_type VARCHAR(64),
+		resource_id UUID,
+		read_at TIMESTAMPTZ,
+		created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+	)`).Error
+	_ = db.Exec(`CREATE INDEX IF NOT EXISTS idx_notifications_user_created ON notifications(user_id, created_at DESC)`).Error
+	_ = db.Exec(`CREATE TABLE IF NOT EXISTS document_attachments (
+		id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+		document_id UUID NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+		filename VARCHAR(512) NOT NULL,
+		storage_key VARCHAR(1024) NOT NULL UNIQUE,
+		mime_type VARCHAR(128) NOT NULL DEFAULT 'application/octet-stream',
+		size_bytes BIGINT NOT NULL DEFAULT 0,
+		uploaded_by UUID REFERENCES users(id) ON DELETE SET NULL,
+		created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+	)`).Error
+	_ = db.Exec(`CREATE INDEX IF NOT EXISTS idx_document_attachments_doc ON document_attachments(document_id)`).Error
+
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
 	r.Use(gin.Recovery())
@@ -200,7 +247,7 @@ func main() {
 	})
 	h.Register(r)
 
-	hdl := handler.New(spaces, docs, repos, audit, searcher, llmClient, admin, db, jwtMgr, syncClient, cfg.Security.EnableAuditLog)
+	hdl := handler.New(spaces, docs, repos, audit, prefs, notifications, attachments, searcher, llmClient, admin, db, jwtMgr, syncClient, cfg.Security.EnableAuditLog)
 	hdl.Register(r)
 	adminHdl := handler.NewAdminHandler(hdl, admin, groups, spaces, repos, audit, syncClient, cfg.Security.EnableAuditLog)
 	adminHdl.Register(r)

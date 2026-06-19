@@ -29,6 +29,7 @@ type DocumentView struct {
 	Translated      bool   `json:"translated,omitempty"`
 	SourceLanguage  string `json:"source_language,omitempty"`
 	DisplayLanguage string `json:"display_language,omitempty"`
+	IsFavorite      bool   `json:"is_favorite,omitempty"`
 }
 
 func (s *Service) LocalizeDocument(ctx context.Context, doc *models.Document, targetLang string, allowLLM bool) (*DocumentView, error) {

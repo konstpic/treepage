@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/konstpic/treepage/backend/pkg/models"
 	"github.com/konstpic/treepage/backend/server/internal/book"
 	"github.com/konstpic/treepage/backend/server/internal/llm"
 	"github.com/konstpic/treepage/backend/server/internal/search"
@@ -16,16 +17,19 @@ import (
 )
 
 type Handler struct {
-	spaces    *service.SpaceService
-	docs      *service.DocumentService
-	repos     *service.RepositoryService
-	audit     *service.AuditService
-	search    search.Searcher
-	books     *book.Service
-	translate *translate.Service
-	sync      *syncclient.Client
-	jwt       *pkgjwt.Manager
-	auditOn   bool
+	spaces        *service.SpaceService
+	docs          *service.DocumentService
+	repos         *service.RepositoryService
+	audit         *service.AuditService
+	prefs         *service.UserPrefsService
+	notifications *service.NotificationService
+	attachments   *service.AttachmentService
+	search        search.Searcher
+	books         *book.Service
+	translate     *translate.Service
+	sync          *syncclient.Client
+	jwt           *pkgjwt.Manager
+	auditOn       bool
 }
 
 func New(
@@ -33,6 +37,9 @@ func New(
 	docs *service.DocumentService,
 	repos *service.RepositoryService,
 	audit *service.AuditService,
+	prefs *service.UserPrefsService,
+	notifications *service.NotificationService,
+	attachments *service.AttachmentService,
 	searcher search.Searcher,
 	llmClient *llm.Client,
 	admin *service.AdminService,
@@ -43,7 +50,8 @@ func New(
 ) *Handler {
 	return &Handler{
 		spaces: spaces, docs: docs, repos: repos,
-		audit: audit, search: searcher, sync: syncClient,
+		audit: audit, prefs: prefs, notifications: notifications, attachments: attachments,
+		search: searcher, sync: syncClient,
 		books: book.NewService(docs, db, llmClient),
 		translate: translate.NewService(db, llmClient, admin),
 		jwt: jwt, auditOn: auditOn,
@@ -67,6 +75,7 @@ func (h *Handler) Register(r *gin.Engine) {
 		api.GET("/spaces/:slug/books", h.ListBooks)
 		api.GET("/spaces/:slug/books/:bookSlug", h.GetSavedBook)
 		api.GET("/search", h.Search)
+		api.GET("/attachments/:id/download", h.DownloadAttachment)
 	}
 
 	apiAuth := r.Group("/api")
@@ -77,7 +86,19 @@ func (h *Handler) Register(r *gin.Engine) {
 		apiAuth.PUT("/documents/:id", h.UpdateDocument)
 		apiAuth.DELETE("/documents/:id", h.DeleteDocument)
 		apiAuth.POST("/documents/:id/publish", h.PublishDocument)
+		apiAuth.POST("/documents/:id/publish-local", h.PublishDocumentLocal)
 		apiAuth.POST("/documents/:id/revert/:version", h.RevertDocumentVersion)
+		apiAuth.GET("/documents/:id/attachments", h.ListDocumentAttachments)
+		apiAuth.POST("/documents/:id/attachments", h.UploadDocumentAttachment)
+		apiAuth.DELETE("/attachments/:id", h.DeleteAttachment)
+		apiAuth.GET("/me/favorites", h.ListFavorites)
+		apiAuth.POST("/me/favorites/:documentId", h.AddFavorite)
+		apiAuth.DELETE("/me/favorites/:documentId", h.RemoveFavorite)
+		apiAuth.GET("/me/recent", h.ListRecent)
+		apiAuth.GET("/notifications", h.ListNotifications)
+		apiAuth.GET("/notifications/unread-count", h.NotificationUnreadCount)
+		apiAuth.POST("/notifications/:id/read", h.MarkNotificationRead)
+		apiAuth.POST("/notifications/read-all", h.MarkAllNotificationsRead)
 		apiAuth.GET("/documents/:id/versions", h.ListDocumentVersions)
 		apiAuth.GET("/documents/:id/versions/:version/diff", h.DiffDocumentVersions)
 		apiAuth.GET("/documents/:id/versions/:version", h.GetDocumentVersion)
@@ -176,7 +197,17 @@ func (h *Handler) ListDocuments(c *gin.Context) {
 	if !h.requireSpaceAccess(c, space) {
 		return
 	}
-	docs, err := h.docs.ListBySpace(c.Request.Context(), space.ID)
+	canEdit, err := h.canEditInSpace(c, space)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	var docs []models.Document
+	if canEdit {
+		docs, err = h.docs.ListBySpaceIncludingDrafts(c.Request.Context(), space.ID)
+	} else {
+		docs, err = h.docs.ListBySpace(c.Request.Context(), space.ID)
+	}
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -193,10 +224,23 @@ func (h *Handler) GetDocument(c *gin.Context) {
 	if !h.requireSpaceAccess(c, space) {
 		return
 	}
-	doc, err := h.docs.GetBySlug(c.Request.Context(), space.ID, c.Param("docSlug"))
+	canEdit, err := h.canEditInSpace(c, space)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	doc, err := h.docs.GetBySlugVisible(c.Request.Context(), space.ID, c.Param("docSlug"), canEdit)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "document not found"})
 		return
+	}
+	if !doc.IsPublished && !canEdit {
+		c.JSON(http.StatusNotFound, gin.H{"error": "document not found"})
+		return
+	}
+	userID := c.GetString("userID")
+	if userID != "" {
+		_ = h.prefs.RecordView(c.Request.Context(), userID, doc.ID, space.ID)
 	}
 	lang := c.Query("lang")
 	if lang == "" {
@@ -206,6 +250,11 @@ func (h *Handler) GetDocument(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
+	}
+	if userID != "" {
+		if fav, err := h.prefs.IsFavorite(c.Request.Context(), userID, doc.ID); err == nil {
+			view.IsFavorite = fav
+		}
 	}
 	c.JSON(http.StatusOK, view)
 }
@@ -229,6 +278,13 @@ func (h *Handler) CreateDocument(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+	if doc.IsPublished {
+		h.notifications.NotifySpaceEditors(
+			c.Request.Context(), space.ID, c.GetString("userID"),
+			"document.created", "New document", doc.Title,
+			"document", doc.ID,
+		)
+	}
 	h.logAudit(c, "document.create", "document", doc.ID)
 	c.JSON(http.StatusCreated, doc)
 }
@@ -248,17 +304,26 @@ func (h *Handler) UpdateDocument(c *gin.Context) {
 		return
 	}
 	var body struct {
-		Content string `json:"content"`
-		Title   string `json:"title"`
+		Content     string `json:"content"`
+		Title       string `json:"title"`
+		IsPublished *bool  `json:"is_published"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	doc, err = h.docs.Update(c.Request.Context(), c.Param("id"), c.GetString("userID"), body.Content, body.Title)
+	wasPublished := doc.IsPublished
+	doc, err = h.docs.UpdateFull(c.Request.Context(), c.Param("id"), c.GetString("userID"), body.Content, body.Title, body.IsPublished)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "document not found"})
 		return
+	}
+	if body.IsPublished != nil && *body.IsPublished && !wasPublished {
+		h.notifications.NotifySpaceEditors(
+			c.Request.Context(), space.ID, c.GetString("userID"),
+			"document.published", "Document published", doc.Title,
+			"document", doc.ID,
+		)
 	}
 	h.logAudit(c, "document.update", "document", doc.ID)
 	c.JSON(http.StatusOK, doc)

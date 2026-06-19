@@ -10,6 +10,7 @@ import { SpaceBooksPage } from "@/pages/books";
 import { BookReaderPage } from "@/pages/book";
 import { DocumentPage } from "@/pages/document";
 import { SpaceDocLayout } from "@/components/space-doc-layout";
+import { MePage } from "@/pages/me";
 import { SearchPage } from "@/pages/search";
 import {
   AdminLayout,
@@ -40,6 +41,7 @@ export function AppRoutes() {
             <Route path="docs/:docSlug" element={<DocumentPage />} />
           </Route>
           <Route path="/search" element={<SearchPage />} />
+          <Route path="/me" element={<MePage />} />
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<AdminIndexRedirect />} />
             <Route path="spaces" element={<AdminSpacesPage />} />

@@ -22,6 +22,7 @@ services:
       - ./migrations/010_space_groups.up.sql:/docker-entrypoint-initdb.d/009_space_groups.sql:ro
       - ./migrations/011_oidc_sync_groups.up.sql:/docker-entrypoint-initdb.d/010_oidc_sync_groups.sql:ro
       - ./migrations/012_production_hardening.up.sql:/docker-entrypoint-initdb.d/011_production_hardening.sql:ro
+      - ./migrations/013_team_kb.up.sql:/docker-entrypoint-initdb.d/012_team_kb.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U treepage"]
       interval: 5s
@@ -70,6 +71,9 @@ services:
       JWT_SECRET: dev-jwt-secret-change-in-production
       SYNC_SERVICE_URL: http://backend-sync:8083
       INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-dev-internal-token-change-in-production}
+      ATTACHMENTS_DIR: /data/attachments
+      SEARCH_BACKEND: ${SEARCH_BACKEND:-postgres}
+      OPENSEARCH_URL: ${OPENSEARCH_URL:-}
       # Optional: AI book enhancement (OpenAI-compatible API)
       # LLM_ENABLED: ${LLM_ENABLED:-false}
       # LLM_API_URL: ${LLM_API_URL:-https://api.openai.com/v1}
@@ -79,6 +83,7 @@ services:
       - ./backend/server:/app/backend/server
       - ./backend/pkg:/app/backend/pkg
       - ./backend/server/conf/config.yml:/opt/app/conf/config.yml:ro
+      - attachments_data:/data/attachments
     depends_on:
       postgres:
         condition: service_healthy
@@ -125,3 +130,4 @@ services:
 volumes:
   postgres_data:
   sync_repos:
+  attachments_data:

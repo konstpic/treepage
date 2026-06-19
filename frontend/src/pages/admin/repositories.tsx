@@ -19,6 +19,7 @@ interface Repository {
   name: string;
   url: string;
   branch: string;
+  provider?: string;
   docs_path: string;
   sync_mode: string;
   sync_interval_seconds: number;
@@ -34,11 +35,14 @@ interface Repository {
 
 const SYNC_MODES = ["manual", "scheduled", "webhook"];
 
+const PROVIDERS = ["github", "gitlab", "gitea", "bitbucket", "generic"] as const;
+
 type RepoForm = {
   space_id: string;
   name: string;
   url: string;
   branch: string;
+  provider: string;
   docs_path: string;
   sync_mode: string;
   sync_interval_seconds: number;
@@ -52,6 +56,7 @@ const emptyForm = (): RepoForm => ({
   name: "",
   url: "",
   branch: "main",
+  provider: "generic",
   docs_path: "docs",
   sync_mode: "manual",
   sync_interval_seconds: 300,
@@ -66,6 +71,7 @@ function repoToForm(repo: Repository): RepoForm {
     name: repo.name,
     url: repo.url,
     branch: repo.branch || "main",
+    provider: repo.provider || "generic",
     docs_path: repo.docs_path || "docs",
     sync_mode: repo.sync_mode || "manual",
     sync_interval_seconds: repo.sync_interval_seconds || 300,
@@ -133,6 +139,16 @@ function RepositoryFormFields({
         onChange={(e) => setForm({ ...form, url: e.target.value })}
         required
       />
+      <SelectField
+        value={form.provider}
+        onChange={(e) => setForm({ ...form, provider: e.target.value })}
+      >
+        {PROVIDERS.map((p) => (
+          <option key={p} value={p}>
+            {p}
+          </option>
+        ))}
+      </SelectField>
       <input
         className="input-field"
         placeholder="Docs path"

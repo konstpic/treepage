@@ -261,3 +261,50 @@ type SyncJob struct {
 }
 
 func (SyncJob) TableName() string { return "sync_jobs" }
+
+type UserFavorite struct {
+	UserID     string    `gorm:"type:uuid;primaryKey" json:"user_id"`
+	DocumentID string    `gorm:"type:uuid;primaryKey" json:"document_id"`
+	CreatedAt  time.Time `json:"created_at"`
+	Document   *Document `gorm:"foreignKey:DocumentID" json:"document,omitempty"`
+}
+
+func (UserFavorite) TableName() string { return "user_favorites" }
+
+type UserRecentView struct {
+	UserID     string    `gorm:"type:uuid;primaryKey" json:"user_id"`
+	DocumentID string    `gorm:"type:uuid;primaryKey" json:"document_id"`
+	SpaceID    string    `gorm:"type:uuid" json:"space_id"`
+	ViewedAt   time.Time `json:"viewed_at"`
+	Document   *Document `gorm:"foreignKey:DocumentID" json:"document,omitempty"`
+	Space      *Space    `gorm:"foreignKey:SpaceID" json:"space,omitempty"`
+}
+
+func (UserRecentView) TableName() string { return "user_recent_views" }
+
+type Notification struct {
+	ID           string     `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	UserID       string     `gorm:"type:uuid;index" json:"user_id"`
+	Type         string     `gorm:"size:64" json:"type"`
+	Title        string     `gorm:"size:512" json:"title"`
+	Body         string     `json:"body"`
+	ResourceType *string    `gorm:"size:64" json:"resource_type,omitempty"`
+	ResourceID   *string    `gorm:"type:uuid" json:"resource_id,omitempty"`
+	ReadAt       *time.Time `json:"read_at,omitempty"`
+	CreatedAt    time.Time  `json:"created_at"`
+}
+
+func (Notification) TableName() string { return "notifications" }
+
+type DocumentAttachment struct {
+	ID         string    `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	DocumentID string    `gorm:"type:uuid;index" json:"document_id"`
+	Filename   string    `gorm:"size:512" json:"filename"`
+	StorageKey string    `gorm:"size:1024;uniqueIndex" json:"storage_key"`
+	MimeType   string    `gorm:"size:128" json:"mime_type"`
+	SizeBytes  int64     `json:"size_bytes"`
+	UploadedBy *string   `gorm:"type:uuid" json:"uploaded_by,omitempty"`
+	CreatedAt  time.Time `json:"created_at"`
+}
+
+func (DocumentAttachment) TableName() string { return "document_attachments" }

@@ -64,6 +64,8 @@ func (s *Syncer) SyncRepository(ctx context.Context, repoID, trigger string) (*S
 
 	repoHEAD, _ := s.gitOutput(ctx, cloneDir, "rev-parse", "HEAD")
 
+	seenSlugs := make(map[string]struct{})
+
 	err := filepath.WalkDir(docsRoot, func(path string, d fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return nil
@@ -76,6 +78,8 @@ func (s *Syncer) SyncRepository(ctx context.Context, repoID, trigger string) (*S
 			return nil
 		}
 		rel, _ := filepath.Rel(docsRoot, path)
+		slug := slugify(strings.TrimSuffix(rel, ".md"))
+		seenSlugs[slug] = struct{}{}
 		applied, upsertErr := s.upsertDocument(ctx, repo, rel, string(content), strings.TrimSpace(repoHEAD))
 		if errors.Is(upsertErr, ErrSyncConflict) {
 			result.ConflictsSkipped++
@@ -91,6 +95,10 @@ func (s *Syncer) SyncRepository(ctx context.Context, repoID, trigger string) (*S
 		}
 		return nil
 	})
+
+	if err == nil {
+		s.removeOrphanDocuments(ctx, repo, seenSlugs)
+	}
 
 	s.finishJob(ctx, &job, &repo, result, err)
 	return result, err
@@ -141,6 +149,30 @@ func (s *Syncer) upsertDocument(ctx context.Context, repo models.Repository, rel
 		doc.CommitSHA = commitSHA
 	}
 	return true, s.db.WithContext(ctx).Save(&doc).Error
+}
+
+func (s *Syncer) removeOrphanDocuments(ctx context.Context, repo models.Repository, seen map[string]struct{}) {
+	var docs []models.Document
+	if err := s.db.WithContext(ctx).
+		Where("repository_id = ? AND space_id = ?", repo.ID, repo.SpaceID).
+		Find(&docs).Error; err != nil {
+		s.logger.Warn("list repo documents for orphan cleanup failed", zap.Error(err))
+		return
+	}
+	for _, doc := range docs {
+		if _, ok := seen[doc.Slug]; ok {
+			continue
+		}
+		if doc.HasPendingChanges {
+			s.logger.Info("orphan document skipped (pending local changes)", zap.String("slug", doc.Slug))
+			continue
+		}
+		if err := s.db.WithContext(ctx).Delete(&doc).Error; err != nil {
+			s.logger.Warn("orphan document delete failed", zap.String("slug", doc.Slug), zap.Error(err))
+		} else {
+			s.logger.Info("orphan document removed after sync", zap.String("slug", doc.Slug))
+		}
+	}
 }
 
 func (s *Syncer) finishJob(ctx context.Context, job *models.SyncJob, repo *models.Repository, result *SyncResult, syncErr error) {

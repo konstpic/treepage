@@ -21,6 +21,8 @@ interface DocumentEditorProps {
   onTitleChange: (title: string) => void;
   onContentChange: (content: string) => void;
   onSave: () => void;
+  onSaveDraft?: () => void;
+  onPublishLocal?: () => void;
   onPublishPR?: (input: PublishPRInput) => void | Promise<void>;
   onCancel: () => void;
 }
@@ -40,6 +42,8 @@ export function DocumentEditor({
   onTitleChange,
   onContentChange,
   onSave,
+  onSaveDraft,
+  onPublishLocal,
   onPublishPR,
   onCancel,
 }: DocumentEditorProps) {
@@ -59,6 +63,16 @@ export function DocumentEditor({
           {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
           {t("documentEditor.saveLocal")}
         </button>
+        {onSaveDraft && (
+          <button type="button" className="btn-secondary" disabled={saving || publishing} onClick={onSaveDraft}>
+            {t("documentEditor.saveDraft")}
+          </button>
+        )}
+        {onPublishLocal && (
+          <button type="button" className="btn-secondary" disabled={saving || publishing} onClick={onPublishLocal}>
+            {t("documentEditor.publishLocal")}
+          </button>
+        )}
         {gitLinked && onPublishPR && (
           <button
             type="button"

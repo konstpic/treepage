@@ -4,6 +4,7 @@ export interface DocItem {
   title: string;
   path: string;
   updated_at: string;
+  is_published?: boolean;
 }
 
 export interface DocFolderNode {

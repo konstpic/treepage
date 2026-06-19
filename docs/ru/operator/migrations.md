@@ -16,6 +16,8 @@ SQL-миграции находятся в `migrations/`.
 | `009_book_translations.up.sql` | Переводы книг |
 | `010_space_groups.up.sql` | Группы в пространствах |
 | `011_oidc_sync_groups.up.sql` | sync_groups flag для OIDC |
+| `012_production_hardening.up.sql` | Pending changes, audit, OIDC Redis |
+| `013_team_kb.up.sql` | Избранное, недавние, уведомления, вложения |
 
 > Миграция `004` отсутствует (пропущена в нумерации).
 

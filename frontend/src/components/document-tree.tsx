@@ -26,6 +26,7 @@ function TreeNode({
   activeSlug,
   expanded,
   onToggle,
+  draftLabel,
 }: {
   node: DocTreeNode;
   spaceSlug: string;
@@ -33,6 +34,7 @@ function TreeNode({
   activeSlug?: string;
   expanded: Set<string>;
   onToggle: (folderPath: string) => void;
+  draftLabel: string;
 }) {
   if (node.type === "file") {
     const active = node.doc.slug === activeSlug;
@@ -50,6 +52,9 @@ function TreeNode({
       >
         <FileText className="h-3.5 w-3.5 shrink-0 opacity-70" />
         <span className="truncate">{node.doc.title}</span>
+        {node.doc.is_published === false && (
+          <span className="badge badge-neutral ml-auto shrink-0 text-[10px]">{draftLabel}</span>
+        )}
       </Link>
     );
   }
@@ -82,6 +87,7 @@ function TreeNode({
               activeSlug={activeSlug}
               expanded={expanded}
               onToggle={onToggle}
+              draftLabel={draftLabel}
             />
           ))}
         </div>
@@ -145,6 +151,7 @@ export function DocumentTree({
           activeSlug={activeSlug}
           expanded={expanded}
           onToggle={toggle}
+          draftLabel={t("document.draft")}
         />
       ))}
     </nav>

@@ -2,6 +2,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X, LogOut, User, ChevronRight, Search } from "lucide-react";
+import { NotificationsBell } from "@/components/notifications-bell";
 import { TreePageLogo } from "@/components/treepage-logo";
 import { useAuthStore, useBrandingStore } from "@/lib/store";
 import { useI18n } from "@/lib/i18n";
@@ -18,6 +19,7 @@ export function Navigation() {
   const navLinks = [
     { href: "/spaces", label: t("nav.spaces") },
     { href: "/search", label: t("nav.search") },
+    { href: "/me", label: t("nav.myPages"), auth: true },
     { href: "/admin", label: t("nav.admin"), auth: true, roles: ["super_admin", "admin"] as const },
   ];
 
@@ -66,7 +68,8 @@ export function Navigation() {
           </Link>
           {isHydrated && isAuthenticated ? (
             <>
-              <Link to="/spaces" className="btn-ghost">
+              <NotificationsBell />
+              <Link to="/me" className="btn-ghost">
                 <User className="h-4 w-4" />
                 {user?.display_name || t("common.account")}
               </Link>

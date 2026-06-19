@@ -16,6 +16,8 @@ SQL migrations are in `migrations/`.
 | `009_book_translations.up.sql` | Book translations |
 | `010_space_groups.up.sql` | Groups in spaces |
 | `011_oidc_sync_groups.up.sql` | sync_groups flag for OIDC |
+| `012_production_hardening.up.sql` | Pending changes, audit, OIDC Redis |
+| `013_team_kb.up.sql` | Favorites, recent views, notifications, attachments |
 
 > Migration `004` is missing (skipped in numbering).
 

@@ -77,5 +77,10 @@ func (h *Handler) PublishDocument(c *gin.Context) {
 		return
 	}
 	h.logAudit(c, "document.publish", "document", doc.ID)
+	h.notifications.NotifySpaceEditors(
+		c.Request.Context(), space.ID, c.GetString("userID"),
+		"document.git_publish", "Changes pushed to Git", doc.Title,
+		"document", doc.ID,
+	)
 	c.JSON(http.StatusOK, result)
 }

@@ -27,6 +27,22 @@
 
 Saving creates a new document **version**.
 
+## Drafts
+
+- **Save as draft** — saves the page with `is_published = false`; only editors see it in the space tree (marked **Draft**)
+- **Publish** — makes the page visible to all space members with read access
+- For Git-linked pages, **Send PR** still pushes upstream separately from local publish
+
+## Attachments
+
+Editors can upload files (up to 10 MiB) on the document page. Files are stored on the server (`ATTACHMENTS_DIR`) and linked to the document.
+
+## Favorites and recent
+
+- Star a document to add it to **My pages** (`/me`)
+- Recently viewed documents appear automatically on the same page
+- Notifications about publishes and new documents appear in the bell icon in the navigation bar
+
 ## Git-backed documents
 
 If a page is synchronized from Git:

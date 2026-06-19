@@ -220,8 +220,40 @@ func (d *DocumentService) ListBySpace(ctx context.Context, spaceID string) ([]mo
 	return docs, err
 }
 
+func (d *DocumentService) ListBySpaceIncludingDrafts(ctx context.Context, spaceID string) ([]models.Document, error) {
+	var docs []models.Document
+	err := d.db.WithContext(ctx).
+		Select("id", "space_id", "repository_id", "slug", "title", "path", "tags", "updated_at", "is_published").
+		Where("space_id = ?", spaceID).
+		Order("path ASC").
+		Find(&docs).Error
+	return docs, err
+}
+
 func (d *DocumentService) GetBySlug(ctx context.Context, spaceID, slug string) (*models.Document, error) {
+	return d.GetBySlugVisible(ctx, spaceID, slug, false)
+}
+
+func (d *DocumentService) GetBySlugVisible(ctx context.Context, spaceID, slug string, includeDrafts bool) (*models.Document, error) {
 	var doc models.Document
+	if includeDrafts {
+		err := d.db.WithContext(ctx).
+			Where("space_id = ? AND slug = ? AND is_published = ?", spaceID, slug, true).
+			First(&doc).Error
+		if err == nil {
+			return &doc, nil
+		}
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, err
+		}
+		err = d.db.WithContext(ctx).
+			Where("space_id = ? AND slug = ?", spaceID, slug).
+			First(&doc).Error
+		if err != nil {
+			return nil, err
+		}
+		return &doc, nil
+	}
 	err := d.db.WithContext(ctx).
 		Where("space_id = ? AND slug = ? AND is_published = ?", spaceID, slug, true).
 		First(&doc).Error
@@ -232,10 +264,11 @@ func (d *DocumentService) GetBySlug(ctx context.Context, spaceID, slug string) (
 }
 
 type CreateDocumentInput struct {
-	Title   string   `json:"title" binding:"required"`
-	Path    string   `json:"path" binding:"required"`
-	Content string   `json:"content"`
-	Tags    []string `json:"tags"`
+	Title       string   `json:"title" binding:"required"`
+	Path        string   `json:"path" binding:"required"`
+	Content     string   `json:"content"`
+	Tags        []string `json:"tags"`
+	IsPublished *bool    `json:"is_published"`
 }
 
 func (d *DocumentService) Create(ctx context.Context, spaceID, userID string, input CreateDocumentInput) (*models.Document, error) {
@@ -243,10 +276,14 @@ func (d *DocumentService) Create(ctx context.Context, spaceID, userID string, in
 	if slug == "" {
 		slug = slugify(input.Title)
 	}
+	isPublished := true
+	if input.IsPublished != nil {
+		isPublished = *input.IsPublished
+	}
 	doc := models.Document{
 		SpaceID: spaceID, Slug: slug, Title: input.Title,
 		Path: input.Path, Content: input.Content, Tags: input.Tags,
-		AuthorID: &userID, IsPublished: true,
+		AuthorID: &userID, IsPublished: isPublished,
 	}
 	if err := d.db.WithContext(ctx).Create(&doc).Error; err != nil {
 		return nil, err
@@ -267,6 +304,10 @@ func (d *DocumentService) GetByID(ctx context.Context, id string) (*models.Docum
 }
 
 func (d *DocumentService) Update(ctx context.Context, docID, userID string, content, title string) (*models.Document, error) {
+	return d.UpdateFull(ctx, docID, userID, content, title, nil)
+}
+
+func (d *DocumentService) UpdateFull(ctx context.Context, docID, userID string, content, title string, isPublished *bool) (*models.Document, error) {
 	var doc models.Document
 	if err := d.db.WithContext(ctx).First(&doc, "id = ?", docID).Error; err != nil {
 		return nil, err
@@ -275,6 +316,9 @@ func (d *DocumentService) Update(ctx context.Context, docID, userID string, cont
 		doc.Title = title
 	}
 	doc.Content = content
+	if isPublished != nil {
+		doc.IsPublished = *isPublished
+	}
 	if doc.RepositoryID != nil {
 		doc.HasPendingChanges = true
 	}

@@ -143,6 +143,13 @@ func (s *Syncer) PublishDocument(ctx context.Context, repoID string, input Publi
 		} else {
 			result.PRURL = prURL
 		}
+	case "gitlab":
+		if prURL, err := createGitLabMR(ctx, repo.URL, token, baseBranch, input.Branch, prTitle, input.PRBody); err != nil {
+			s.logger.Warn("gitlab mr creation failed", zap.Error(err))
+			result.Message = "Changes pushed; create a merge request manually in GitLab."
+		} else {
+			result.PRURL = prURL
+		}
 	default:
 		result.Message = "Changes pushed; create a PR manually in your Git provider."
 	}
@@ -240,4 +247,80 @@ func createGitHubPR(ctx context.Context, repoURL, token, base, head, title, body
 		return "", err
 	}
 	return parsed.HTMLURL, nil
+}
+
+func parseGitLabProject(rawURL string) (string, error) {
+	u := strings.TrimSuffix(strings.TrimSpace(rawURL), ".git")
+	var path string
+	if strings.HasPrefix(u, "git@") {
+		if idx := strings.LastIndex(u, ":"); idx >= 0 {
+			path = u[idx+1:]
+		}
+	} else {
+		parsed, err := url.Parse(u)
+		if err != nil {
+			return "", err
+		}
+		path = strings.Trim(parsed.Path, "/")
+	}
+	if path == "" {
+		return "", fmt.Errorf("cannot parse gitlab project from url")
+	}
+	return url.PathEscape(path), nil
+}
+
+func gitLabAPIBase(rawURL string) string {
+	u := strings.TrimSuffix(strings.TrimSpace(rawURL), ".git")
+	if strings.HasPrefix(u, "git@") {
+		parts := strings.SplitN(strings.TrimPrefix(u, "git@"), ":", 2)
+		if len(parts) == 2 {
+			return "https://" + parts[0] + "/api/v4"
+		}
+	}
+	parsed, err := url.Parse(u)
+	if err != nil || parsed.Host == "" {
+		return "https://gitlab.com/api/v4"
+	}
+	return parsed.Scheme + "://" + parsed.Host + "/api/v4"
+}
+
+func createGitLabMR(ctx context.Context, repoURL, token, base, head, title, body string) (string, error) {
+	project, err := parseGitLabProject(repoURL)
+	if err != nil {
+		return "", err
+	}
+	payload := map[string]string{
+		"title":         title,
+		"source_branch": head,
+		"target_branch": base,
+		"description":   body,
+	}
+	raw, _ := json.Marshal(payload)
+	apiBase := gitLabAPIBase(repoURL)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost,
+		fmt.Sprintf("%s/projects/%s/merge_requests", apiBase, project),
+		bytes.NewReader(raw))
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("PRIVATE-TOKEN", token)
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{Timeout: 30 * time.Second}
+	res, err := client.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer res.Body.Close()
+	respBody, _ := io.ReadAll(res.Body)
+	if res.StatusCode >= 300 {
+		return "", fmt.Errorf("gitlab api %d: %s", res.StatusCode, strings.TrimSpace(string(respBody)))
+	}
+	var parsed struct {
+		WebURL string `json:"web_url"`
+	}
+	if err := json.Unmarshal(respBody, &parsed); err != nil {
+		return "", err
+	}
+	return parsed.WebURL, nil
 }
