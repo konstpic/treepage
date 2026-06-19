@@ -8,7 +8,8 @@
 |----------|------------|---------------|
 | `/liveness` | Процесс жив | Kubernetes livenessProbe |
 | `/readiness` | DB подключена | Kubernetes readinessProbe |
-| `/metrics` | Prometheus metrics | Scraping |
+| `/health` | Alias readiness | Docker healthcheck, load balancers |
+| `/metrics` | Prometheus metrics | Scraping (только напрямую на :8081/:8082/:8083) |
 
 ### Проверка вручную
 

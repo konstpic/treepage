@@ -44,9 +44,15 @@ services:
       postgres:
         condition: service_healthy
       backend-server:
-        condition: service_started
+        condition: service_healthy
       redis:
         condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8081/health >/dev/null 2>&1 || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 30s
 
   backend-server:
     build:
@@ -78,6 +84,12 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8082/health >/dev/null 2>&1 || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 60s
 
   backend-sync:
     build:
@@ -99,7 +111,13 @@ services:
       postgres:
         condition: service_healthy
       backend-server:
-        condition: service_started
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8083/health >/dev/null 2>&1 || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 30s
 
   frontend:
     build:
@@ -116,8 +134,10 @@ services:
       - ./frontend:/app
       - /app/node_modules
     depends_on:
-      - backend-auth
-      - backend-server
+      backend-auth:
+        condition: service_healthy
+      backend-server:
+        condition: service_healthy
 
 volumes:
   postgres_data:

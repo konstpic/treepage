@@ -120,7 +120,7 @@ func ZapAccessLog(log *zap.Logger) func(method, path string, status int, latency
 func AccessLogger(appLevel string, logFn func(method, path string, status int, latency time.Duration)) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		path := c.Request.URL.Path
-		if path == "/liveness" || path == "/readiness" || path == "/metrics" {
+		if path == "/liveness" || path == "/readiness" || path == "/health" || path == "/metrics" {
 			c.Next()
 			return
 		}

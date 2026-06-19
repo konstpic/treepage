@@ -8,7 +8,7 @@ WORKDIR /app/backend/server
 RUN go mod download && CGO_ENABLED=0 go build -o /treepage-server ./cmd
 
 FROM alpine:3.20
-RUN apk add --no-cache ca-certificates
+RUN apk add --no-cache ca-certificates wget
 COPY --from=builder /treepage-server /usr/local/bin/treepage-server
 COPY migrations /app/migrations
 ENV MIGRATIONS_DIR=/app/migrations

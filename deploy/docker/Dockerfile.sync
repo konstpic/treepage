@@ -8,7 +8,7 @@ WORKDIR /app/backend/sync
 RUN go mod download && CGO_ENABLED=0 go build -o /treepage-sync ./cmd
 
 FROM alpine:3.20
-RUN apk add --no-cache ca-certificates git
+RUN apk add --no-cache ca-certificates git wget
 COPY --from=builder /treepage-sync /usr/local/bin/treepage-sync
 RUN mkdir -p /data/repos
 EXPOSE 8083

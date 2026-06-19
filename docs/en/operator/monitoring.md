@@ -8,7 +8,8 @@ All Go services and frontend nginx expose:
 |----------|---------|-------|
 | `/liveness` | Process alive | Kubernetes livenessProbe |
 | `/readiness` | DB connected | Kubernetes readinessProbe |
-| `/metrics` | Prometheus metrics | Scraping |
+| `/health` | Alias for readiness | Docker healthcheck, load balancers |
+| `/metrics` | Prometheus metrics | Scraping (direct :8081/:8082/:8083 only) |
 
 ### Manual check
 

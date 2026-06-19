@@ -29,7 +29,13 @@ func (h *Handler) SetReady(v bool) {
 func (h *Handler) Register(r *gin.Engine) {
 	r.GET("/liveness", h.liveness)
 	r.GET("/readiness", h.readiness)
+	r.GET("/health", h.health)
 	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
+}
+
+func (h *Handler) health(c *gin.Context) {
+	// Alias for tools/Docker expecting /health (same semantics as readiness).
+	h.readiness(c)
 }
 
 func (h *Handler) liveness(c *gin.Context) {
