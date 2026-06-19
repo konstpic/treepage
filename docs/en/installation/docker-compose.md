@@ -1,6 +1,6 @@
 # Installation with Docker Compose
 
-The fastest way to run TreePage locally with hot reload.
+The fastest way to run TreePage locally. Frontend uses Vite hot reload; backend runs a pre-built binary in the image (fast container startup).
 
 ## Step 1. Clone the repository
 
@@ -26,6 +26,14 @@ Docker Compose starts:
 | postgres | localhost:5432 | Database |
 
 Database migrations are applied automatically when **backend-server** starts (scans the `migrations/` folder).
+
+After Go backend changes, rebuild the image:
+
+```bash
+docker compose up -d --build backend-server backend-auth backend-sync
+```
+
+For active backend development without Docker, see [Local development](local-development.md) (`go run` / Air).
 
 ## Step 3. Verify
 

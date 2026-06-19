@@ -25,7 +25,7 @@ services:
   backend-auth:
     build:
       context: .
-      dockerfile: deploy/docker/Dockerfile.auth.dev
+      dockerfile: deploy/docker/Dockerfile.auth
     ports:
       - "8081:8081"
     environment:
@@ -38,8 +38,6 @@ services:
       CSRF_SECRET: dev-csrf-secret
       REDIS_ADDR: redis:6379
     volumes:
-      - ./backend/auth:/app/backend/auth
-      - ./backend/pkg:/app/backend/pkg
       - ./backend/auth/conf/config.yml:/opt/app/conf/config.yml:ro
     depends_on:
       postgres:
@@ -52,7 +50,7 @@ services:
   backend-server:
     build:
       context: .
-      dockerfile: deploy/docker/Dockerfile.server.dev
+      dockerfile: deploy/docker/Dockerfile.server
     ports:
       - "8082:8082"
     environment:
@@ -72,8 +70,6 @@ services:
       # EMBEDDING_ENABLED: "true"
       # EMBEDDING_MODEL: nomic-embed-text
     volumes:
-      - ./backend/server:/app/backend/server
-      - ./backend/pkg:/app/backend/pkg
       - ./migrations:/app/migrations:ro
       - ./backend/server/conf/config.yml:/opt/app/conf/config.yml:ro
       - attachments_data:/data/attachments
@@ -84,7 +80,7 @@ services:
   backend-sync:
     build:
       context: .
-      dockerfile: deploy/docker/Dockerfile.sync.dev
+      dockerfile: deploy/docker/Dockerfile.sync
     ports:
       - "8083:8083"
     environment:
@@ -94,8 +90,6 @@ services:
       GIT_WEBHOOK_SECRET: ${GIT_WEBHOOK_SECRET:-dev-webhook-secret}
       INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-dev-internal-token-change-in-production}
     volumes:
-      - ./backend/sync:/app/backend/sync
-      - ./backend/pkg:/app/backend/pkg
       - ./backend/sync/conf/config.yml:/opt/app/conf/config.yml:ro
       - sync_repos:/tmp/treepage-repos
     depends_on:

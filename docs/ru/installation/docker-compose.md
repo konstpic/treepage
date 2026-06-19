@@ -1,6 +1,6 @@
 # Установка через Docker Compose
 
-Самый быстрый способ запустить TreePage локально с hot reload.
+Самый быстрый способ запустить TreePage локально. Frontend — hot reload через Vite; backend — готовый бинарник в образе (быстрый старт контейнеров).
 
 ## Шаг 1. Клонирование репозитория
 
@@ -26,6 +26,14 @@ Docker Compose поднимает:
 | postgres | localhost:5432 | База данных |
 
 Миграции БД применяются автоматически при старте **backend-server** (сканирует папку `migrations/`).
+
+После изменений в Go-коде backend пересоберите образ:
+
+```bash
+docker compose up -d --build backend-server backend-auth backend-sync
+```
+
+Для активной разработки backend без Docker см. [Локальная разработка](local-development.md) (`go run` / Air).
 
 ## Шаг 3. Проверка
 
