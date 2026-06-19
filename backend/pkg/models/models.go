@@ -3,6 +3,7 @@ package models
 import (
 	"time"
 
+	"github.com/konstpic/treepage/backend/pkg/embeddings"
 	"github.com/lib/pq"
 )
 
@@ -356,11 +357,35 @@ type DocumentViewStats struct {
 func (DocumentViewStats) TableName() string { return "document_view_stats" }
 
 type DocumentChunk struct {
-	ID          string `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
-	DocumentID  string `gorm:"type:uuid;index" json:"document_id"`
-	ChunkIndex  int    `json:"chunk_index"`
-	Content     string `json:"content"`
-	ContentHash string `gorm:"size:64" json:"content_hash"`
+	ID          string              `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	DocumentID  string              `gorm:"type:uuid;index" json:"document_id"`
+	ChunkIndex  int                 `json:"chunk_index"`
+	Content     string              `json:"content"`
+	ContentHash string              `gorm:"size:64" json:"content_hash"`
+	Embedding   embeddings.Vector   `gorm:"type:jsonb" json:"embedding,omitempty"`
 }
 
 func (DocumentChunk) TableName() string { return "document_chunks" }
+
+type RAGFeedback struct {
+	ID         string    `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	UserID     *string   `gorm:"type:uuid" json:"user_id,omitempty"`
+	Question   string    `json:"question"`
+	Answer     string    `json:"answer,omitempty"`
+	Helpful    bool      `json:"helpful"`
+	Confidence float32   `json:"confidence,omitempty"`
+	Sources    []byte    `gorm:"type:jsonb" json:"sources,omitempty"`
+	Citations  []byte    `gorm:"type:jsonb" json:"citations,omitempty"`
+	CreatedAt  time.Time `json:"created_at"`
+}
+
+func (RAGFeedback) TableName() string { return "rag_feedback" }
+
+type RAGLearnedSynonym struct {
+	Term      string    `gorm:"size:128;primaryKey" json:"term"`
+	Synonyms  []string  `gorm:"type:text[]" json:"synonyms"`
+	HitCount  int       `json:"hit_count"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+func (RAGLearnedSynonym) TableName() string { return "rag_learned_synonyms" }

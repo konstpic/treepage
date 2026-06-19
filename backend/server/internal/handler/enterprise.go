@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/konstpic/treepage/backend/pkg/models"
+	"github.com/konstpic/treepage/backend/server/internal/rag"
 	"github.com/konstpic/treepage/backend/server/internal/service"
 )
 
@@ -236,6 +237,23 @@ func (h *Handler) RAGAsk(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, answer)
+}
+
+func (h *Handler) RAGFeedback(c *gin.Context) {
+	var body rag.FeedbackInput
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if c.GetString("userID") == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "authentication required"})
+		return
+	}
+	if err := h.rag.SubmitFeedback(c.Request.Context(), c.GetString("userID"), body); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
 
 func (h *Handler) AnalyticsOverview(c *gin.Context) {

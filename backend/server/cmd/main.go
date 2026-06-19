@@ -12,6 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/konstpic/treepage/backend/pkg/config"
 	"github.com/konstpic/treepage/backend/pkg/database"
+	"github.com/konstpic/treepage/backend/pkg/embeddings"
 	"github.com/konstpic/treepage/backend/pkg/health"
 	pkgjwt "github.com/konstpic/treepage/backend/pkg/jwt"
 	"github.com/konstpic/treepage/backend/pkg/logging"
@@ -90,13 +91,14 @@ func main() {
 		os.Getenv("LLM_API_KEY"),
 		os.Getenv("LLM_MODEL"),
 	))
+	embedClient := embeddings.NewClient(embeddings.LoadConfigFromEnv())
 
 	syncURL := os.Getenv("SYNC_SERVICE_URL")
 	if syncURL == "" {
 		syncURL = "http://backend-sync:8083"
 	}
 	syncClient := syncclient.New(syncURL)
-	ragSvc := rag.New(db, llmClient, spaces, pageACL)
+	ragSvc := rag.New(db, llmClient, embedClient, spaces, pageACL)
 
 	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
@@ -106,15 +108,22 @@ func main() {
 			log.Warn("rag chunk count check failed", zap.Error(err))
 			return
 		}
-		if chunkCount > 0 {
-			return
+		if chunkCount == 0 {
+			n, err := ragSvc.ReindexAllPublished(ctx)
+			if err != nil {
+				log.Warn("rag backfill failed", zap.Int("indexed", n), zap.Error(err))
+			} else {
+				log.Info("rag backfill completed", zap.Int("documents", n))
+			}
 		}
-		n, err := ragSvc.ReindexAllPublished(ctx)
-		if err != nil {
-			log.Warn("rag backfill failed", zap.Int("indexed", n), zap.Error(err))
-			return
+		if embedClient.Available() {
+			n, err := ragSvc.BackfillEmbeddings(ctx)
+			if err != nil {
+				log.Warn("rag embedding backfill failed", zap.Int("chunks", n), zap.Error(err))
+			} else if n > 0 {
+				log.Info("rag embedding backfill completed", zap.Int("chunks", n))
+			}
 		}
-		log.Info("rag backfill completed", zap.Int("documents", n))
 	}()
 
 	welcomeCfg := service.LoadWelcomeBootstrapConfig()
@@ -300,7 +309,26 @@ func main() {
 		chunk_index INT NOT NULL,
 		content TEXT NOT NULL,
 		content_hash VARCHAR(64) NOT NULL,
+		embedding JSONB,
 		UNIQUE (document_id, chunk_index)
+	)`).Error
+	_ = db.Exec(`ALTER TABLE document_chunks ADD COLUMN IF NOT EXISTS embedding JSONB`).Error
+	_ = db.Exec(`CREATE TABLE IF NOT EXISTS rag_feedback (
+		id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+		user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+		question TEXT NOT NULL,
+		answer TEXT,
+		helpful BOOLEAN NOT NULL,
+		confidence REAL,
+		sources JSONB NOT NULL DEFAULT '[]',
+		citations JSONB NOT NULL DEFAULT '[]',
+		created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+	)`).Error
+	_ = db.Exec(`CREATE TABLE IF NOT EXISTS rag_learned_synonyms (
+		term VARCHAR(128) PRIMARY KEY,
+		synonyms TEXT[] NOT NULL DEFAULT '{}',
+		hit_count INT NOT NULL DEFAULT 1,
+		updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 	)`).Error
 
 	gin.SetMode(gin.ReleaseMode)

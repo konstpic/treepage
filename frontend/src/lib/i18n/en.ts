@@ -65,6 +65,13 @@ export const en = {
     placeholder: "Ask a question about your documentation…",
     ask: "Ask",
     sources: "Sources",
+    bestMatch: "Best match",
+    citations: "From the docs",
+    followUp: "Clarify your question",
+    lowConfidence: "I'm not fully confident — try one of these:",
+    feedbackHelpful: "Helpful",
+    feedbackNotHelpful: "Not helpful",
+    feedbackThanks: "Thanks for your feedback!",
   },
   footer: {
     tagline: "TreePage — self-hosted documentation platform",

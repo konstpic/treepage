@@ -118,6 +118,7 @@ func (h *Handler) Register(r *gin.Engine) {
 		apiAuth.POST("/documents/:id/approve", h.ApproveDocumentReview)
 		apiAuth.POST("/documents/:id/reject-review", h.RejectDocumentReview)
 		apiAuth.POST("/rag/ask", h.RAGAsk)
+		apiAuth.POST("/rag/feedback", h.RAGFeedback)
 		apiAuth.GET("/documents/:id/versions", h.ListDocumentVersions)
 		apiAuth.GET("/documents/:id/versions/:version/diff", h.DiffDocumentVersions)
 		apiAuth.GET("/documents/:id/versions/:version", h.GetDocumentVersion)

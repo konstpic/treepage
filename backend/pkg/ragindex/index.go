@@ -6,11 +6,21 @@ import (
 	"encoding/hex"
 	"strings"
 
+	"github.com/konstpic/treepage/backend/pkg/embeddings"
 	"github.com/konstpic/treepage/backend/pkg/models"
 	"gorm.io/gorm"
 )
 
+type Embedder interface {
+	Available() bool
+	Embed(ctx context.Context, text string) (embeddings.Vector, error)
+}
+
 func IndexDocument(ctx context.Context, db *gorm.DB, doc *models.Document) error {
+	return IndexDocumentWithEmbedder(ctx, db, doc, nil)
+}
+
+func IndexDocumentWithEmbedder(ctx context.Context, db *gorm.DB, doc *models.Document, embedder Embedder) error {
 	hash := contentHash(doc.Content)
 	if err := db.WithContext(ctx).Where("document_id = ?", doc.ID).Delete(&models.DocumentChunk{}).Error; err != nil {
 		return err
@@ -20,9 +30,15 @@ func IndexDocument(ctx context.Context, db *gorm.DB, doc *models.Document) error
 		if strings.TrimSpace(chunk) == "" {
 			continue
 		}
-		if err := db.WithContext(ctx).Create(&models.DocumentChunk{
+		row := models.DocumentChunk{
 			DocumentID: doc.ID, ChunkIndex: i, Content: chunk, ContentHash: hash,
-		}).Error; err != nil {
+		}
+		if embedder != nil && embedder.Available() {
+			if emb, err := embedder.Embed(ctx, chunk); err == nil && len(emb) > 0 {
+				row.Embedding = emb
+			}
+		}
+		if err := db.WithContext(ctx).Create(&row).Error; err != nil {
 			return err
 		}
 	}

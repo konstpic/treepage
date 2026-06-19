@@ -65,6 +65,13 @@ export const ru = {
     placeholder: "Задайте вопрос по документации…",
     ask: "Спросить",
     sources: "Источники",
+    bestMatch: "Наиболее релевантно",
+    citations: "Цитата из документации",
+    followUp: "Уточните вопрос",
+    lowConfidence: "Не уверен в ответе — попробуйте уточнить:",
+    feedbackHelpful: "Полезно",
+    feedbackNotHelpful: "Не помогло",
+    feedbackThanks: "Спасибо за отзыв!",
   },
   footer: {
     tagline: "TreePage — self-hosted платформа документации",

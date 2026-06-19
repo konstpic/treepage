@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link, useSearchParams } from "react-router-dom";
-import { Loader2, Search, Sparkles } from "lucide-react";
+import { Loader2, Search, Sparkles, ThumbsDown, ThumbsUp } from "lucide-react";
 import { ApiError, api, optionalAuthApi } from "@/lib/api";
 import { FadeIn } from "@/components/motion-wrapper";
 import { SelectField } from "@/components/select-field";
@@ -40,6 +40,33 @@ function buildSearchUrl(params: {
   if (params.tags) sp.set("tags", params.tags);
   const qs = sp.toString();
   return qs ? `/api/search?${qs}` : "/api/search";
+}
+
+interface RagSource {
+  document_id: string;
+  space_slug: string;
+  doc_slug: string;
+  title: string;
+  snippet: string;
+  score?: number;
+}
+
+interface RagCitation {
+  document_id: string;
+  space_slug: string;
+  doc_slug: string;
+  title: string;
+  path: string;
+  quote: string;
+}
+
+interface RagAnswer {
+  answer: string;
+  sources: RagSource[];
+  citations?: RagCitation[];
+  confidence?: number;
+  low_confidence?: boolean;
+  follow_up_questions?: string[];
 }
 
 export function SearchPage() {
@@ -100,13 +127,29 @@ export function SearchPage() {
 
   const showResults = submitted.length > 0 && !isLoading && !isFetching && !isError;
 
+  const [feedbackSent, setFeedbackSent] = useState(false);
+
   const ragAsk = useMutation({
     mutationFn: (question: string) =>
-      api<{ answer: string; sources: { space_slug: string; doc_slug: string; title: string; snippet: string }[] }>(
-        "/api/rag/ask",
-        { method: "POST", body: JSON.stringify({ question }) },
-      ),
+      api<RagAnswer>("/api/rag/ask", { method: "POST", body: JSON.stringify({ question }) }),
+    onSuccess: () => setFeedbackSent(false),
     onError: (e) => setAskError(e instanceof ApiError ? e.message : t("common.failed")),
+  });
+
+  const ragFeedback = useMutation({
+    mutationFn: (payload: { helpful: boolean; data: RagAnswer; question: string }) =>
+      api("/api/rag/feedback", {
+        method: "POST",
+        body: JSON.stringify({
+          question: payload.question,
+          answer: payload.data.answer,
+          helpful: payload.helpful,
+          confidence: payload.data.confidence ?? 0,
+          sources: payload.data.sources ?? [],
+          citations: payload.data.citations ?? [],
+        }),
+      }),
+    onSuccess: () => setFeedbackSent(true),
   });
 
   return (
@@ -208,21 +251,100 @@ export function SearchPage() {
             {ragAsk.data && (
               <div className="mt-6 space-y-4">
                 <div className="glass p-4 text-sm text-fg whitespace-pre-wrap">{ragAsk.data.answer}</div>
+
+                {ragAsk.data.citations && ragAsk.data.citations.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-fg">{t("rag.citations")}</p>
+                    {ragAsk.data.citations.map((c) => (
+                      <blockquote
+                        key={`${c.document_id}-${c.quote.slice(0, 40)}`}
+                        className="border-l-2 border-primary/60 bg-surface/50 px-3 py-2 text-sm"
+                      >
+                        <p className="text-fg italic">&ldquo;{c.quote}&rdquo;</p>
+                        <Link
+                          to={`/spaces/${c.space_slug}/docs/${c.doc_slug}`}
+                          className="mt-1 inline-block text-xs text-primary hover:underline"
+                        >
+                          {c.title}
+                        </Link>
+                      </blockquote>
+                    ))}
+                  </div>
+                )}
+
+                {ragAsk.data.low_confidence && ragAsk.data.follow_up_questions && ragAsk.data.follow_up_questions.length > 0 && (
+                  <div className="glass border border-amber-500/30 p-4">
+                    <p className="text-sm font-medium text-fg">{t("rag.lowConfidence")}</p>
+                    <p className="mt-1 text-xs text-muted">{t("rag.followUp")}</p>
+                    <ul className="mt-2 space-y-2">
+                      {ragAsk.data.follow_up_questions.map((q) => (
+                        <li key={q}>
+                          <button
+                            type="button"
+                            className="text-left text-sm text-primary hover:underline"
+                            onClick={() => {
+                              setAskQuestion(q);
+                              setAskError("");
+                              ragAsk.mutate(q);
+                            }}
+                          >
+                            {q}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
                 {ragAsk.data.sources?.length > 0 && (
                   <div>
                     <p className="text-sm font-medium text-fg">{t("rag.sources")}</p>
                     <ul className="mt-2 space-y-2 text-sm">
-                      {ragAsk.data.sources.map((s) => (
+                      {ragAsk.data.sources.map((s, i) => (
                         <li key={`${s.space_slug}-${s.doc_slug}`}>
                           <Link to={`/spaces/${s.space_slug}/docs/${s.doc_slug}`} className="text-primary hover:underline">
                             {s.title}
                           </Link>
+                          {i === 0 && (
+                            <span className="ml-2 text-xs font-medium text-primary/80">{t("rag.bestMatch")}</span>
+                          )}
                           <p className="text-xs text-muted">{s.snippet}</p>
                         </li>
                       ))}
                     </ul>
                   </div>
                 )}
+
+                <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
+                  {feedbackSent ? (
+                    <span className="text-xs text-muted">{t("rag.feedbackThanks")}</span>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        className="btn-secondary text-xs"
+                        disabled={ragFeedback.isPending}
+                        onClick={() =>
+                          ragFeedback.mutate({ helpful: true, data: ragAsk.data!, question: askQuestion.trim() })
+                        }
+                      >
+                        <ThumbsUp className="h-3.5 w-3.5" />
+                        {t("rag.feedbackHelpful")}
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-secondary text-xs"
+                        disabled={ragFeedback.isPending}
+                        onClick={() =>
+                          ragFeedback.mutate({ helpful: false, data: ragAsk.data!, question: askQuestion.trim() })
+                        }
+                      >
+                        <ThumbsDown className="h-3.5 w-3.5" />
+                        {t("rag.feedbackNotHelpful")}
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
             )}
           </>

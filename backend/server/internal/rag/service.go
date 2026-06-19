@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/konstpic/treepage/backend/pkg/embeddings"
+	"github.com/konstpic/treepage/backend/pkg/fts"
 	"github.com/konstpic/treepage/backend/pkg/models"
 	"github.com/konstpic/treepage/backend/pkg/ragindex"
 	"github.com/konstpic/treepage/backend/server/internal/llm"
@@ -14,14 +16,15 @@ import (
 )
 
 type Service struct {
-	db     *gorm.DB
-	llm    *llm.Client
-	spaces *service.SpaceService
+	db      *gorm.DB
+	llm     *llm.Client
+	embed   *embeddings.Client
+	spaces  *service.SpaceService
 	pageACL *service.PageACLService
 }
 
-func New(db *gorm.DB, llmClient *llm.Client, spaces *service.SpaceService, pageACL *service.PageACLService) *Service {
-	return &Service{db: db, llm: llmClient, spaces: spaces, pageACL: pageACL}
+func New(db *gorm.DB, llmClient *llm.Client, embedClient *embeddings.Client, spaces *service.SpaceService, pageACL *service.PageACLService) *Service {
+	return &Service{db: db, llm: llmClient, embed: embedClient, spaces: spaces, pageACL: pageACL}
 }
 
 type Source struct {
@@ -34,12 +37,16 @@ type Source struct {
 }
 
 type Answer struct {
-	Answer  string   `json:"answer"`
-	Sources []Source `json:"sources"`
+	Answer            string     `json:"answer"`
+	Sources           []Source   `json:"sources"`
+	Citations         []Citation `json:"citations"`
+	Confidence        float64    `json:"confidence"`
+	LowConfidence     bool       `json:"low_confidence"`
+	FollowUpQuestions []string   `json:"follow_up_questions,omitempty"`
 }
 
 func (s *Service) ReindexDocument(ctx context.Context, doc *models.Document) error {
-	return ragindex.IndexDocument(ctx, s.db, doc)
+	return ragindex.IndexDocumentWithEmbedder(ctx, s.db, doc, s.embed)
 }
 
 func (s *Service) ReindexAllPublished(ctx context.Context) (int, error) {
@@ -48,11 +55,28 @@ func (s *Service) ReindexAllPublished(ctx context.Context) (int, error) {
 		return 0, err
 	}
 	for i := range docs {
-		if err := ragindex.IndexDocument(ctx, s.db, &docs[i]); err != nil {
+		if err := ragindex.IndexDocumentWithEmbedder(ctx, s.db, &docs[i], s.embed); err != nil {
 			return i, err
 		}
 	}
 	return len(docs), nil
+}
+
+func (s *Service) retrieveAndRank(ctx context.Context, question string, keywords []string, allowed []string, fetchLimit int, expanded []string) ([]chunkRow, error) {
+	passes := s.buildRetrievalPasses(question, expanded)
+	ftsRows, err := s.retrieveChunks(ctx, passes, allowed, fetchLimit)
+	if err != nil {
+		return nil, err
+	}
+	vecRows, err := s.vectorSearchChunks(ctx, question, allowed, fetchLimit)
+	if err != nil {
+		return nil, err
+	}
+	merged := mergeChunkRows(ftsRows, vecRows)
+	merged = s.rerankWithEmbeddings(ctx, merged, question, keywords)
+	learned := s.loadLearnedSynonyms(ctx)
+	merged = rankChunksWithLearned(merged, keywords, learned)
+	return bestChunkPerDocument(merged), nil
 }
 
 func (s *Service) Ask(ctx context.Context, question, userID string, globalRoles []string, limit int) (*Answer, error) {
@@ -75,41 +99,102 @@ func (s *Service) Ask(ctx context.Context, question, userID string, globalRoles 
 		return &Answer{Answer: "No accessible documentation found for your account.", Sources: nil}, nil
 	}
 
-	type chunkRow struct {
-		ChunkID    string
-		DocumentID string
-		Content    string
-		Title      string
-		Slug       string
-		SpaceSlug  string
-		SpaceID    string
-		Path       string
-		Rank       float64
-	}
-	var rows []chunkRow
-	q := s.db.WithContext(ctx).Table("document_chunks dc").
-		Select(`dc.id AS chunk_id, dc.document_id, dc.content, d.title, d.slug, sp.slug AS space_slug,
-			d.space_id, d.path,
-			ts_rank(to_tsvector('english', dc.content), plainto_tsquery('english', ?)) AS rank`, question).
-		Joins("JOIN documents d ON d.id = dc.document_id").
-		Joins("JOIN spaces sp ON sp.id = d.space_id").
-		Where("d.is_published = ?", true).
-		Where("to_tsvector('english', dc.content) @@ plainto_tsquery('english', ?)", question)
-	if allowed != nil {
-		q = q.Where("d.space_id IN ?", allowed)
-	}
-	if err := q.Order("rank DESC").Limit(limit * 3).Scan(&rows).Error; err != nil {
+	fetchLimit := limit * 5
+	keywords := fts.ExtractKeywords(question)
+	learned := s.loadLearnedSynonyms(ctx)
+
+	rows, err := s.retrieveAndRank(ctx, question, keywords, allowed, fetchLimit, nil)
+	if err != nil {
 		return nil, err
 	}
 
+	sources, contextParts, rankedRows := s.filterAndBuildSources(ctx, rows, userID, globalRoles, isSuperAdmin, limit)
+	if len(sources) == 0 {
+		expanded := s.expandQueryWithLLM(ctx, question)
+		if len(expanded) > 0 {
+			rows, err = s.retrieveAndRank(ctx, question, keywords, allowed, fetchLimit, expanded)
+			if err != nil {
+				return nil, err
+			}
+			sources, contextParts, rankedRows = s.filterAndBuildSources(ctx, rows, userID, globalRoles, isSuperAdmin, limit)
+		}
+	}
+
+	if len(sources) == 0 {
+		conf := computeConfidence(nil, "", nil)
+		followUp := s.buildFollowUpQuestions(ctx, question, nil, isCyrillicQuestion(question))
+		return &Answer{
+			Answer:            notFoundMessage(question),
+			Sources:           []Source{},
+			Citations:         []Citation{},
+			Confidence:        conf.Score,
+			LowConfidence:     true,
+			FollowUpQuestions: followUp,
+		}, nil
+	}
+
+	citations := extractCitations(rankedRows, keywords, learned, 3)
+
+	systemPrompt := "You are a helpful documentation assistant. Be concise and accurate. Use only the provided excerpts."
+	userPromptIntro := `Excerpts are ordered by relevance (most relevant first).
+Read ALL excerpts before answering. If the answer appears in any excerpt, give a clear direct answer and cite the document title.
+Only say you don't know if the excerpts truly do not contain the information.
+
+`
+	if fts.HasCyrillic(question) {
+		systemPrompt = "Ты помощник по документации. Отвечай кратко и точно на языке вопроса. Используй только приведённые фрагменты."
+		userPromptIntro = `Фрагменты отсортированы по релевантности (самый подходящий — первый).
+Прочитай ВСЕ фрагменты. Если ответ есть в тексте — дай конкретный ответ и укажи название документа.
+Не говори «не знаю», если информация есть во фрагментах.
+
+`
+	}
+
+	prompt := userPromptIntro + fmt.Sprintf(`Question: %s
+
+Documentation:
+%s`, question, strings.Join(contextParts, "\n\n---\n\n"))
+
+	answer, err := s.llm.Chat(ctx, systemPrompt, prompt)
+	if err != nil {
+		return nil, err
+	}
+	answer = strings.TrimSpace(answer)
+
+	conf := computeConfidence(rankedRows, answer, citations)
+	followUp := []string(nil)
+	if conf.LowConfidence {
+		followUp = s.buildFollowUpQuestions(ctx, question, rankedRows, isCyrillicQuestion(question))
+	}
+
+	return &Answer{
+		Answer:            answer,
+		Sources:           sources,
+		Citations:         citations,
+		Confidence:        conf.Score,
+		LowConfidence:     conf.LowConfidence,
+		FollowUpQuestions: followUp,
+	}, nil
+}
+
+func notFoundMessage(question string) string {
+	if fts.HasCyrillic(question) {
+		return "Не удалось найти подходящую документацию по вашему вопросу."
+	}
+	return "I could not find relevant documentation for your question."
+}
+
+func (s *Service) filterAndBuildSources(ctx context.Context, rows []chunkRow, userID string, globalRoles []string, isSuperAdmin bool, limit int) ([]Source, []string, []chunkRow) {
 	sources := make([]Source, 0, limit)
 	var contextParts []string
+	var ranked []chunkRow
 	seen := map[string]struct{}{}
 	for _, r := range rows {
 		spaceRole, _ := s.spaces.EffectiveRole(ctx, r.SpaceID, userID, globalRoles)
 		if _, ok := s.pageACL.EffectiveDocumentRole(ctx, r.SpaceID, r.Path, userID, spaceRole, isSuperAdmin); !ok {
 			continue
 		}
+		ranked = append(ranked, r)
 		if _, dup := seen[r.DocumentID]; dup {
 			continue
 		}
@@ -127,25 +212,5 @@ func (s *Service) Ask(ctx context.Context, question, userID string, globalRoles 
 			break
 		}
 	}
-	if len(sources) == 0 {
-		return &Answer{Answer: "I could not find relevant documentation for your question.", Sources: []Source{}}, nil
-	}
-
-	prompt := fmt.Sprintf(`Answer the question using ONLY the documentation excerpts below.
-If the answer is not in the excerpts, say you don't know.
-Cite document titles when relevant.
-
-Question: %s
-
-Documentation:
-%s`, question, strings.Join(contextParts, "\n\n---\n\n"))
-
-	answer, err := s.llm.Chat(ctx,
-		"You are a helpful documentation assistant. Be concise and accurate. Use only the provided excerpts.",
-		prompt,
-	)
-	if err != nil {
-		return nil, err
-	}
-	return &Answer{Answer: strings.TrimSpace(answer), Sources: sources}, nil
+	return sources, contextParts, ranked
 }

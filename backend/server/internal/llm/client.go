@@ -28,7 +28,7 @@ func NewClient(cfg Config) *Client {
 	if cfg.BaseURL == "" {
 		cfg.BaseURL = "https://api.openai.com/v1"
 	}
-	cfg.BaseURL = strings.TrimRight(cfg.BaseURL, "/")
+	cfg.BaseURL = normalizeBaseURL(cfg.BaseURL)
 	if cfg.Model == "" {
 		cfg.Model = "gpt-4o-mini"
 	}
@@ -38,11 +38,18 @@ func NewClient(cfg Config) *Client {
 	}
 }
 
+func normalizeBaseURL(baseURL string) string {
+	baseURL = strings.TrimRight(baseURL, "/")
+	if strings.HasSuffix(baseURL, "/chat/completions") {
+		baseURL = strings.TrimSuffix(baseURL, "/chat/completions")
+	}
+	return strings.TrimRight(baseURL, "/")
+}
+
 func (c *Client) Available() bool {
-	if !c.cfg.Enabled {
+	if !c.cfg.Enabled || c.cfg.BaseURL == "" {
 		return false
 	}
-	// OpenAI and similar providers need a key; Ollama/local often does not.
 	if c.cfg.APIKey != "" {
 		return true
 	}
@@ -51,9 +58,21 @@ func (c *Client) Available() bool {
 
 func isLocalProvider(baseURL string) bool {
 	u := strings.ToLower(baseURL)
-	return strings.Contains(u, ":11434") ||
-		strings.Contains(u, "localhost") ||
-		strings.Contains(u, "127.0.0.1")
+	if strings.Contains(u, "localhost") ||
+		strings.Contains(u, "127.0.0.1") ||
+		strings.Contains(u, "host.docker.internal") {
+		return true
+	}
+	// Private RFC1918 ranges and common local LLM ports (Ollama, LM Studio, etc.).
+	if strings.Contains(u, ":11434") || strings.Contains(u, ":11343") {
+		return true
+	}
+	for _, prefix := range []string{"192.168.", "10.", "172.16.", "172.17.", "172.18.", "172.19.", "172.2", "172.30.", "172.31."} {
+		if strings.Contains(u, prefix) {
+			return true
+		}
+	}
+	return false
 }
 
 type chatRequest struct {

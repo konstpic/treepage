@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/konstpic/treepage/backend/pkg/fts"
 	"github.com/konstpic/treepage/backend/pkg/models"
 	"gorm.io/gorm"
 )
@@ -80,11 +81,21 @@ func (s *PostgresSearcher) Search(ctx context.Context, q Query) ([]Result, int64
 	}
 
 	tsQuery := strings.TrimSpace(q.Text)
+	vectorMatchSQL := `(
+  documents.search_vector @@ plainto_tsquery('english', ?)
+  OR documents.search_vector @@ plainto_tsquery('russian', ?)
+  OR documents.search_vector @@ plainto_tsquery('simple', ?)
+)`
+	vectorRankSQL := `GREATEST(
+  ts_rank(documents.search_vector, plainto_tsquery('english', ?)),
+  ts_rank(documents.search_vector, plainto_tsquery('russian', ?)),
+  ts_rank(documents.search_vector, plainto_tsquery('simple', ?))
+)`
 
 	var total int64
 	countQuery := base
 	if tsQuery != "" {
-		countQuery = countQuery.Where("documents.search_vector @@ plainto_tsquery('english', ?)", tsQuery)
+		countQuery = countQuery.Where(vectorMatchSQL, fts.QueryArgs(tsQuery)...)
 	}
 	if err := countQuery.Count(&total).Error; err != nil {
 		return nil, 0, err
@@ -100,8 +111,8 @@ func (s *PostgresSearcher) Search(ctx context.Context, q Query) ([]Result, int64
 	query := base
 	if tsQuery != "" {
 		query = query.
-			Select("documents.*, spaces.slug as space_slug, ts_rank(documents.search_vector, plainto_tsquery('english', ?)) as rank", tsQuery).
-			Where("documents.search_vector @@ plainto_tsquery('english', ?)", tsQuery).
+			Select("documents.*, spaces.slug as space_slug, "+vectorRankSQL+" as rank", fts.RankArgs(tsQuery)...).
+			Where(vectorMatchSQL, fts.QueryArgs(tsQuery)...).
 			Order("rank DESC")
 	} else {
 		query = query.
