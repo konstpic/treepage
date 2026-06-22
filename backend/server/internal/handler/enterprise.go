@@ -2,8 +2,10 @@ package handler
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/konstpic/treepage/backend/pkg/metrics"
 	"github.com/konstpic/treepage/backend/pkg/models"
 	"github.com/konstpic/treepage/backend/server/internal/rag"
 	"github.com/konstpic/treepage/backend/server/internal/service"
@@ -45,6 +47,7 @@ func (h *Handler) CreatePageACLRule(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+	h.logAudit(c, "page_acl.create", "space", space.ID)
 	c.JSON(http.StatusCreated, rule)
 }
 
@@ -231,7 +234,9 @@ func (h *Handler) RAGAsk(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "authentication required"})
 		return
 	}
+	start := time.Now()
 	answer, err := h.rag.Ask(c.Request.Context(), body.Question, c.GetString("userID"), getRoles(c), body.Limit)
+	metrics.ObserveRAG(time.Since(start), err)
 	if err != nil {
 		c.JSON(http.StatusBadGateway, gin.H{"error": err.Error()})
 		return

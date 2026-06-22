@@ -16,7 +16,9 @@ import (
 	"github.com/konstpic/treepage/backend/pkg/health"
 	"github.com/konstpic/treepage/backend/pkg/internalauth"
 	"github.com/konstpic/treepage/backend/pkg/logging"
+	"github.com/konstpic/treepage/backend/pkg/metrics"
 	"github.com/konstpic/treepage/backend/pkg/middleware"
+	"github.com/konstpic/treepage/backend/pkg/serverclient"
 	"github.com/konstpic/treepage/backend/sync/internal/syncer"
 	"go.uber.org/zap"
 )
@@ -51,7 +53,7 @@ func main() {
 	if workDir == "" {
 		workDir = "/tmp/treepage-repos"
 	}
-	syncSvc := syncer.New(db, workDir, os.Getenv("GIT_ACCESS_TOKEN"), log)
+	syncSvc := syncer.New(db, workDir, os.Getenv("GIT_ACCESS_TOKEN"), log, serverclient.NewFromEnv())
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -67,11 +69,14 @@ func main() {
 		log.Warn("INTERNAL_SERVICE_TOKEN is not set — sync API endpoints are disabled")
 	}
 
+	metrics.Register()
+
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
 	r.Use(gin.Recovery())
 	r.Use(middleware.SecureHeaders())
-	r.Use(middleware.RateLimit(cfg.Security.RateLimitRPS))
+	r.Use(middleware.RateLimitFromEnv("sync", cfg.Security.RateLimitRPS))
+	r.Use(middleware.PrometheusHTTP("sync"))
 	r.Use(middleware.AccessLogger(logLevel, middleware.ZapAccessLog(log)))
 
 	h := health.NewHandler(func(c context.Context) error {

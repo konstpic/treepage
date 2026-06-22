@@ -33,6 +33,7 @@ export function AdminLayout() {
     { href: "/admin/groups", label: t("admin.nav.groups"), icon: UsersRound },
     { href: "/admin/settings", label: t("admin.nav.settings"), icon: Settings },
     { href: "/admin/analytics", label: t("admin.nav.analytics"), icon: BarChart3 },
+    { href: "/admin/rag", label: t("admin.nav.rag"), icon: Database },
     { href: "/admin/audit", label: t("admin.nav.audit"), icon: ClipboardList, roles: ["super_admin"] as const },
     { href: "/admin/oidc", label: t("admin.nav.oidc"), icon: Shield, roles: ["super_admin"] as const },
   ];

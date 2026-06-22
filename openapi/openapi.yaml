@@ -712,6 +712,34 @@ paths:
         "200":
           description: Worker phase and progress
 
+  /api/documents/{id}/sync-resolve:
+    post:
+      tags: [Documents]
+      summary: Resolve Git sync conflict (accept_git or keep_local)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [strategy]
+              properties:
+                strategy:
+                  type: string
+                  enum: [accept_git, keep_local]
+      responses:
+        "200":
+          description: Updated document
+
   /api/admin/rag/reindex:
     post:
       tags: [Admin]

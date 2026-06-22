@@ -1,11 +1,14 @@
 name: treepage
 
+# Local / demo stack with static nginx frontend (same as dev server deploy).
+# Copy docker-compose.dev.yml.example and set LLM_* / secrets in .env
+
 services:
   postgres:
     image: pgvector/pgvector:pg16
     environment:
       POSTGRES_USER: treepage
-      POSTGRES_PASSWORD: treepage
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-treepage}
       POSTGRES_DB: treepage
     ports:
       - "5432:5432"
@@ -30,13 +33,13 @@ services:
       - "8081:8081"
     environment:
       CONFIG_PATH: /opt/app/conf/config.yml
-      DEV_MODE: "true"
-      ENV: dev
-      DB_PASSWORD: treepage
+      DEV_MODE: ${DEV_MODE:-true}
+      ENV: ${ENV:-dev}
+      DB_PASSWORD: ${DB_PASSWORD:-treepage}
       LOG_LEVEL: ${LOG_LEVEL:-info}
-      JWT_SECRET: dev-jwt-secret-change-in-production
+      JWT_SECRET: ${JWT_SECRET:-dev-jwt-secret-change-in-production}
       OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-}
-      CSRF_SECRET: dev-csrf-secret
+      CSRF_SECRET: ${CSRF_SECRET:-dev-csrf-secret}
       REDIS_ADDR: redis:6379
     volumes:
       - ./backend/auth/conf/config.yml:/opt/app/conf/config.yml:ro
@@ -62,24 +65,24 @@ services:
       - "8082:8082"
     environment:
       CONFIG_PATH: /opt/app/conf/config.yml
-      DB_PASSWORD: treepage
+      DB_PASSWORD: ${DB_PASSWORD:-treepage}
       LOG_LEVEL: ${LOG_LEVEL:-info}
-      JWT_SECRET: dev-jwt-secret-change-in-production
+      JWT_SECRET: ${JWT_SECRET:-dev-jwt-secret-change-in-production}
       REDIS_ADDR: redis:6379
       SYNC_SERVICE_URL: http://backend-sync:8083
       INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-dev-internal-token-change-in-production}
       ATTACHMENTS_DIR: /data/attachments
-      # ATTACHMENTS_STORAGE: s3   # optional; requires S3_ENDPOINT, S3_BUCKET, S3_ACCESS_KEY, S3_SECRET_KEY
-      # NOTIFY_WEBHOOK_URL: https://hooks.example.com/treepage
       MIGRATIONS_DIR: /app/migrations
       SEARCH_BACKEND: ${SEARCH_BACKEND:-postgres}
       OPENSEARCH_URL: ${OPENSEARCH_URL:-}
-      # Optional: LLM + embeddings for RAG (OpenAI-compatible chat + Ollama /api/embeddings)
-      # LLM_ENABLED: "true"
-      # LLM_API_URL: http://host.docker.internal:11434/v1
-      # LLM_MODEL: llama3.2:latest
-      # EMBEDDING_ENABLED: "true"
-      # EMBEDDING_MODEL: nomic-embed-text
+      LLM_ENABLED: ${LLM_ENABLED:-false}
+      LLM_API_URL: ${LLM_API_URL:-}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_MODEL: ${LLM_MODEL:-}
+      EMBEDDING_ENABLED: ${EMBEDDING_ENABLED:-false}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-nomic-embed-text}
+      NOTIFY_WEBHOOK_URL: ${NOTIFY_WEBHOOK_URL:-}
+      NOTIFY_SLACK_WEBHOOK_URL: ${NOTIFY_SLACK_WEBHOOK_URL:-}
     volumes:
       - ./migrations:/app/migrations:ro
       - ./backend/server/conf/config.yml:/opt/app/conf/config.yml:ro
@@ -104,7 +107,7 @@ services:
       - "8083:8083"
     environment:
       CONFIG_PATH: /opt/app/conf/config.yml
-      DB_PASSWORD: treepage
+      DB_PASSWORD: ${DB_PASSWORD:-treepage}
       LOG_LEVEL: ${LOG_LEVEL:-info}
       REDIS_ADDR: redis:6379
       SERVER_SERVICE_URL: http://backend-server:8082
@@ -119,6 +122,8 @@ services:
         condition: service_healthy
       backend-server:
         condition: service_healthy
+      redis:
+        condition: service_started
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8083/health >/dev/null 2>&1 || exit 1"]
       interval: 5s

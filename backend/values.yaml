@@ -205,3 +205,19 @@ sync:
     size: 2Gi
     storageClass: ""
     emptyDirSizeLimit: 2Gi
+
+monitoring:
+  serviceMonitor:
+    enabled: false
+    interval: 30s
+    scrapeTimeout: 10s
+    labels: {}
+
+backup:
+  enabled: false
+  schedule: "0 2 * * *"
+  image: postgres:16-alpine
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 1
+  persistence:
+    enabled: false

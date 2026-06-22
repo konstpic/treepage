@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { GitCompare, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { api } from "@/lib/api";
@@ -23,6 +23,7 @@ interface DocumentSyncDiffProps {
 export function DocumentSyncDiff({ documentId }: DocumentSyncDiffProps) {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
+  const qc = useQueryClient();
 
   const { data, isLoading, isFetching, refetch } = useQuery({
     queryKey: ["sync-diff", documentId],
@@ -30,21 +31,52 @@ export function DocumentSyncDiff({ documentId }: DocumentSyncDiffProps) {
     enabled: open,
   });
 
+  const resolve = useMutation({
+    mutationFn: (strategy: "accept_git" | "keep_local") =>
+      api(`/api/documents/${documentId}/sync-resolve`, {
+        method: "POST",
+        body: JSON.stringify({ strategy }),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["document"] });
+      qc.invalidateQueries({ queryKey: ["sync-diff", documentId] });
+      setOpen(false);
+    },
+  });
+
   return (
     <div className="mb-4 rounded-xl border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-fg">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span>{t("document.pendingChanges")}</span>
-        <button
-          type="button"
-          className="btn-ghost text-xs"
-          onClick={() => {
-            setOpen(true);
-            void refetch();
-          }}
-        >
-          <GitCompare className="mr-1 inline h-3.5 w-3.5" />
-          {t("document.viewSyncDiff")}
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            className="btn-ghost text-xs"
+            onClick={() => {
+              setOpen(true);
+              void refetch();
+            }}
+          >
+            <GitCompare className="mr-1 inline h-3.5 w-3.5" />
+            {t("document.viewSyncDiff")}
+          </button>
+          <button
+            type="button"
+            className="btn-secondary text-xs"
+            disabled={resolve.isPending}
+            onClick={() => resolve.mutate("accept_git")}
+          >
+            {t("document.acceptGit")}
+          </button>
+          <button
+            type="button"
+            className="btn-ghost text-xs"
+            disabled={resolve.isPending}
+            onClick={() => resolve.mutate("keep_local")}
+          >
+            {t("document.keepLocal")}
+          </button>
+        </div>
       </div>
       {open && (
         <div className="mt-3 max-h-64 overflow-auto rounded-lg border border-default bg-surface p-3 font-mono text-xs">

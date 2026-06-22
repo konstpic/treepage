@@ -1,0 +1,44 @@
+{{- if .Values.backup.enabled }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "treepage-backend.fullname" . }}-postgres-backup
+  labels:
+    {{- include "treepage-backend.labels" . | nindent 4 }}
+spec:
+  schedule: {{ .Values.backup.schedule | quote }}
+  successfulJobsHistoryLimit: {{ .Values.backup.successfulJobsHistoryLimit }}
+  failedJobsHistoryLimit: {{ .Values.backup.failedJobsHistoryLimit }}
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: pg-dump
+              image: {{ .Values.backup.image }}
+              command:
+                - /bin/sh
+                - -ec
+                - |
+                  TS=$(date +%Y%m%d-%H%M%S)
+                  pg_dump -h {{ .Values.postgresql.host }} -U {{ .Values.postgresql.user }} -d {{ .Values.postgresql.database }} -Fc -f /backup/treepage-$TS.dump
+                  ls -la /backup/
+              env:
+                - name: PGPASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ include "treepage-backend.secretName" . }}
+                      key: db-password
+              volumeMounts:
+                - name: backup
+                  mountPath: /backup
+          volumes:
+            - name: backup
+              {{- if .Values.backup.persistence.enabled }}
+              persistentVolumeClaim:
+                claimName: {{ include "treepage-backend.fullname" . }}-backup
+              {{- else }}
+              emptyDir: {}
+              {{- end }}
+{{- end }}

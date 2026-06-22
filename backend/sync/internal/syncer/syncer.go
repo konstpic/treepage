@@ -13,8 +13,10 @@ import (
 	"time"
 
 	"github.com/konstpic/treepage/backend/pkg/contenthash"
+	"github.com/konstpic/treepage/backend/pkg/metrics"
 	"github.com/konstpic/treepage/backend/pkg/models"
 	"github.com/konstpic/treepage/backend/pkg/ragindex"
+	"github.com/konstpic/treepage/backend/pkg/serverclient"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
@@ -135,6 +137,7 @@ func (s *Syncer) upsertDocument(ctx context.Context, repo models.Repository, rel
 		if err := ragindex.IndexDocument(ctx, s.db, &doc); err != nil {
 			s.logger.Warn("rag index failed after create", zap.String("slug", slug), zap.Error(err))
 		}
+		s.notifySearchReindex(ctx, doc.ID)
 		return true, nil
 	}
 	if err != nil {
@@ -163,6 +166,7 @@ func (s *Syncer) upsertDocument(ctx context.Context, repo models.Repository, rel
 	if err := ragindex.IndexDocument(ctx, s.db, &doc); err != nil {
 		s.logger.Warn("rag index failed after update", zap.String("slug", slug), zap.Error(err))
 	}
+	s.notifySearchReindex(ctx, doc.ID)
 	return true, nil
 }
 
@@ -186,6 +190,7 @@ func (s *Syncer) removeOrphanDocuments(ctx context.Context, repo models.Reposito
 			s.logger.Warn("orphan document delete failed", zap.String("slug", doc.Slug), zap.Error(err))
 		} else {
 			s.logger.Info("orphan document removed after sync", zap.String("slug", doc.Slug))
+			s.notifySearchDelete(ctx, doc.ID)
 		}
 	}
 }
@@ -200,10 +205,12 @@ func (s *Syncer) finishJob(ctx context.Context, job *models.SyncJob, repo *model
 		job.ErrorMessage = syncErr.Error()
 		repo.LastSyncStatus = "failed"
 		repo.LastSyncError = syncErr.Error()
+		metrics.IncSync(job.TriggerType, "failed")
 	} else {
 		job.Status = "completed"
 		repo.LastSyncStatus = "completed"
 		repo.LastSyncError = ""
+		metrics.IncSync(job.TriggerType, "completed")
 	}
 	now := time.Now()
 	repo.LastSyncAt = &now
@@ -218,11 +225,38 @@ type Syncer struct {
 	workDir string
 	token   string
 	logger  *zap.Logger
+	server  *serverclient.Client
 }
 
-func New(db *gorm.DB, workDir, token string, logger *zap.Logger) *Syncer {
+func New(db *gorm.DB, workDir, token string, logger *zap.Logger, server *serverclient.Client) *Syncer {
 	_ = os.MkdirAll(workDir, 0o755)
-	return &Syncer{db: db, workDir: workDir, token: token, logger: logger}
+	return &Syncer{db: db, workDir: workDir, token: token, logger: logger, server: server}
+}
+
+func (s *Syncer) notifySearchReindex(ctx context.Context, docID string) {
+	if s.server == nil {
+		return
+	}
+	go func(id string) {
+		c, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		if err := s.server.ReindexDocument(c, id); err != nil && s.logger != nil {
+			s.logger.Warn("search reindex notify failed", zap.String("document_id", id), zap.Error(err))
+		}
+	}(docID)
+}
+
+func (s *Syncer) notifySearchDelete(ctx context.Context, docID string) {
+	if s.server == nil {
+		return
+	}
+	go func(id string) {
+		c, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		defer cancel()
+		if err := s.server.DeleteDocumentIndex(c, id); err != nil && s.logger != nil {
+			s.logger.Warn("search index delete notify failed", zap.String("document_id", id), zap.Error(err))
+		}
+	}(docID)
 }
 
 func extractH1(content string) string {

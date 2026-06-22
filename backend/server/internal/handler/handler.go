@@ -3,9 +3,11 @@ package handler
 import (
 	"context"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/konstpic/treepage/backend/pkg/metrics"
 	"github.com/konstpic/treepage/backend/pkg/models"
 	"github.com/konstpic/treepage/backend/server/internal/book"
 	"github.com/konstpic/treepage/backend/server/internal/llm"
@@ -121,6 +123,7 @@ func (h *Handler) Register(r *gin.Engine) {
 		apiAuth.POST("/rag/ask", h.RAGAsk)
 		apiAuth.POST("/rag/feedback", h.RAGFeedback)
 		apiAuth.GET("/documents/:id/sync-diff", h.GetDocumentSyncDiff)
+		apiAuth.POST("/documents/:id/sync-resolve", h.ResolveDocumentSyncConflict)
 		apiAuth.GET("/documents/:id/versions", h.ListDocumentVersions)
 		apiAuth.GET("/documents/:id/versions/:version/diff", h.DiffDocumentVersions)
 		apiAuth.GET("/documents/:id/versions/:version", h.GetDocumentVersion)
@@ -433,10 +436,16 @@ func (h *Handler) Search(c *gin.Context) {
 	}
 	q.AllowedSpaceIDs = allowed
 	results, total, err := h.search.Search(c.Request.Context(), q)
+	backend := os.Getenv("SEARCH_BACKEND")
+	if backend == "" {
+		backend = "postgres"
+	}
 	if err != nil {
+		metrics.IncSearch(backend, "error")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+	metrics.IncSearch(backend, "ok")
 	h.analytics.LogSearch(c.Request.Context(), c.GetString("userID"), q.Text, int(total))
 	c.JSON(http.StatusOK, gin.H{"items": results, "total": total})
 }

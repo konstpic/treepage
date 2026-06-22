@@ -1,14 +1,15 @@
-name: treepage
+name: treepage-prod
+
+# Production-oriented compose. Requires .env.prod (see .env.prod.example).
+# Static nginx frontend on :80, DEV_MODE off, no dev secret defaults in services.
 
 services:
   postgres:
     image: pgvector/pgvector:pg16
     environment:
       POSTGRES_USER: treepage
-      POSTGRES_PASSWORD: treepage
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD required}
       POSTGRES_DB: treepage
-    ports:
-      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -16,27 +17,25 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
 
   redis:
     image: redis:7-alpine
-    ports:
-      - "6379:6379"
+    restart: unless-stopped
 
   backend-auth:
     build:
       context: .
       dockerfile: deploy/docker/Dockerfile.auth
-    ports:
-      - "8081:8081"
     environment:
       CONFIG_PATH: /opt/app/conf/config.yml
-      DEV_MODE: "true"
-      ENV: dev
-      DB_PASSWORD: treepage
+      ENV: prod
+      DEV_MODE: "false"
+      DB_PASSWORD: ${DB_PASSWORD}
       LOG_LEVEL: ${LOG_LEVEL:-info}
-      JWT_SECRET: dev-jwt-secret-change-in-production
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET required}
       OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-}
-      CSRF_SECRET: dev-csrf-secret
+      CSRF_SECRET: ${CSRF_SECRET:?CSRF_SECRET required}
       REDIS_ADDR: redis:6379
     volumes:
       - ./backend/auth/conf/config.yml:/opt/app/conf/config.yml:ro
@@ -49,37 +48,47 @@ services:
         condition: service_started
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8081/health >/dev/null 2>&1 || exit 1"]
-      interval: 5s
+      interval: 10s
       timeout: 3s
-      retries: 12
+      retries: 6
       start_period: 30s
+    restart: unless-stopped
 
   backend-server:
     build:
       context: .
       dockerfile: deploy/docker/Dockerfile.server
-    ports:
-      - "8082:8082"
     environment:
       CONFIG_PATH: /opt/app/conf/config.yml
-      DB_PASSWORD: treepage
+      DB_PASSWORD: ${DB_PASSWORD}
       LOG_LEVEL: ${LOG_LEVEL:-info}
-      JWT_SECRET: dev-jwt-secret-change-in-production
+      JWT_SECRET: ${JWT_SECRET}
       REDIS_ADDR: redis:6379
       SYNC_SERVICE_URL: http://backend-sync:8083
-      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-dev-internal-token-change-in-production}
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:?INTERNAL_SERVICE_TOKEN required}
       ATTACHMENTS_DIR: /data/attachments
-      # ATTACHMENTS_STORAGE: s3   # optional; requires S3_ENDPOINT, S3_BUCKET, S3_ACCESS_KEY, S3_SECRET_KEY
-      # NOTIFY_WEBHOOK_URL: https://hooks.example.com/treepage
+      ATTACHMENTS_STORAGE: ${ATTACHMENTS_STORAGE:-local}
       MIGRATIONS_DIR: /app/migrations
       SEARCH_BACKEND: ${SEARCH_BACKEND:-postgres}
       OPENSEARCH_URL: ${OPENSEARCH_URL:-}
-      # Optional: LLM + embeddings for RAG (OpenAI-compatible chat + Ollama /api/embeddings)
-      # LLM_ENABLED: "true"
-      # LLM_API_URL: http://host.docker.internal:11434/v1
-      # LLM_MODEL: llama3.2:latest
-      # EMBEDDING_ENABLED: "true"
-      # EMBEDDING_MODEL: nomic-embed-text
+      LLM_ENABLED: ${LLM_ENABLED:-false}
+      LLM_API_URL: ${LLM_API_URL:-}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_MODEL: ${LLM_MODEL:-}
+      EMBEDDING_ENABLED: ${EMBEDDING_ENABLED:-false}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-}
+      NOTIFY_WEBHOOK_URL: ${NOTIFY_WEBHOOK_URL:-}
+      NOTIFY_SLACK_WEBHOOK_URL: ${NOTIFY_SLACK_WEBHOOK_URL:-}
+      NOTIFY_SMTP_HOST: ${NOTIFY_SMTP_HOST:-}
+      NOTIFY_SMTP_PORT: ${NOTIFY_SMTP_PORT:-587}
+      NOTIFY_SMTP_FROM: ${NOTIFY_SMTP_FROM:-}
+      NOTIFY_SMTP_USER: ${NOTIFY_SMTP_USER:-}
+      NOTIFY_SMTP_PASSWORD: ${NOTIFY_SMTP_PASSWORD:-}
+      S3_ENDPOINT: ${S3_ENDPOINT:-}
+      S3_BUCKET: ${S3_BUCKET:-}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-}
+      S3_USE_SSL: ${S3_USE_SSL:-false}
     volumes:
       - ./migrations:/app/migrations:ro
       - ./backend/server/conf/config.yml:/opt/app/conf/config.yml:ro
@@ -91,26 +100,25 @@ services:
         condition: service_started
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8082/health >/dev/null 2>&1 || exit 1"]
-      interval: 5s
+      interval: 10s
       timeout: 3s
-      retries: 12
+      retries: 6
       start_period: 60s
+    restart: unless-stopped
 
   backend-sync:
     build:
       context: .
       dockerfile: deploy/docker/Dockerfile.sync
-    ports:
-      - "8083:8083"
     environment:
       CONFIG_PATH: /opt/app/conf/config.yml
-      DB_PASSWORD: treepage
+      DB_PASSWORD: ${DB_PASSWORD}
       LOG_LEVEL: ${LOG_LEVEL:-info}
       REDIS_ADDR: redis:6379
       SERVER_SERVICE_URL: http://backend-server:8082
       GIT_ACCESS_TOKEN: ${GIT_ACCESS_TOKEN:-}
-      GIT_WEBHOOK_SECRET: ${GIT_WEBHOOK_SECRET:-dev-webhook-secret}
-      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-dev-internal-token-change-in-production}
+      GIT_WEBHOOK_SECRET: ${GIT_WEBHOOK_SECRET:?GIT_WEBHOOK_SECRET required}
+      INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN}
     volumes:
       - ./backend/sync/conf/config.yml:/opt/app/conf/config.yml:ro
       - sync_repos:/tmp/treepage-repos
@@ -119,24 +127,28 @@ services:
         condition: service_healthy
       backend-server:
         condition: service_healthy
+      redis:
+        condition: service_started
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8083/health >/dev/null 2>&1 || exit 1"]
-      interval: 5s
+      interval: 10s
       timeout: 3s
-      retries: 12
+      retries: 6
       start_period: 30s
+    restart: unless-stopped
 
   frontend:
     build:
       context: .
       dockerfile: deploy/docker/Dockerfile.frontend
     ports:
-      - "80:80"
+      - "${FRONTEND_PORT:-80}:80"
     depends_on:
       backend-auth:
         condition: service_healthy
       backend-server:
         condition: service_healthy
+    restart: unless-stopped
 
 volumes:
   postgres_data:

@@ -1,0 +1,32 @@
+# Copy to .env and adjust for your environment.
+# Used with: docker compose -f docker-compose.dev.yml --env-file .env up -d
+
+DB_PASSWORD=treepage
+JWT_SECRET=change-me-generate-long-random
+INTERNAL_SERVICE_TOKEN=change-me-internal-token
+CSRF_SECRET=change-me-csrf-secret
+GIT_ACCESS_TOKEN=
+GIT_WEBHOOK_SECRET=
+LOG_LEVEL=info
+DEV_MODE=true
+ENV=dev
+
+# Optional RAG (Ollama on host: use host.docker.internal or LAN IP)
+LLM_ENABLED=true
+LLM_API_URL=http://host.docker.internal:11434/v1
+LLM_MODEL=llama3.2:latest
+EMBEDDING_ENABLED=true
+EMBEDDING_MODEL=nomic-embed-text
+
+# Optional notifications
+# NOTIFY_WEBHOOK_URL=
+# NOTIFY_SLACK_WEBHOOK_URL=
+# NOTIFY_SMTP_HOST=
+# NOTIFY_SMTP_PORT=587
+# NOTIFY_SMTP_FROM=treepage@example.com
+# NOTIFY_SMTP_USER=
+# NOTIFY_SMTP_PASSWORD=
+
+# Optional search scale
+# SEARCH_BACKEND=opensearch
+# OPENSEARCH_URL=http://opensearch:9200

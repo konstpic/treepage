@@ -12,10 +12,12 @@ import (
 type NotificationService struct {
 	db      *gorm.DB
 	webhook *notify.Webhook
+	slack   *notify.Slack
+	email   *notify.Email
 }
 
-func NewNotificationService(db *gorm.DB, webhook *notify.Webhook) *NotificationService {
-	return &NotificationService{db: db, webhook: webhook}
+func NewNotificationService(db *gorm.DB, webhook *notify.Webhook, slack *notify.Slack, email *notify.Email) *NotificationService {
+	return &NotificationService{db: db, webhook: webhook, slack: slack, email: email}
 }
 
 func (s *NotificationService) List(ctx context.Context, userID string, limit int) ([]models.Notification, error) {
@@ -61,13 +63,33 @@ func (s *NotificationService) Create(ctx context.Context, userID, nType, title, 
 	if err := s.db.WithContext(ctx).Create(&n).Error; err != nil {
 		return nil, err
 	}
-	if s.webhook != nil {
-		go s.webhook.Notify(context.Background(), notify.Payload{
-			Type: nType, Title: title, Body: body, UserID: userID,
-			ResourceType: resourceType, ResourceID: resourceID,
-		})
-	}
+	s.dispatchExternal(userID, nType, title, body, resourceType, resourceID)
 	return &n, nil
+}
+
+func (s *NotificationService) dispatchExternal(userID, nType, title, body string, resourceType, resourceID *string) {
+	if s.webhook == nil && s.slack == nil && s.email == nil {
+		return
+	}
+	payload := notify.Payload{
+		Type: nType, Title: title, Body: body, UserID: userID,
+		ResourceType: resourceType, ResourceID: resourceID,
+	}
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if s.webhook != nil {
+			s.webhook.Notify(ctx, payload)
+		}
+		if s.slack != nil {
+			s.slack.Notify(ctx, payload)
+		}
+		if s.email != nil {
+			var userEmail string
+			s.db.WithContext(ctx).Model(&models.User{}).Where("id = ?", userID).Select("email").Scan(&userEmail)
+			s.email.Notify(ctx, userEmail, payload)
+		}
+	}()
 }
 
 // NotifySpaceEditors sends a notification to all editors+ in a space (excluding actor).

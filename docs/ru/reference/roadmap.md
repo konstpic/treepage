@@ -205,6 +205,20 @@ EMBEDDING_MODEL: nomic-embed-text          # ollama pull nomic-embed-text
 
 ---
 
+## P0 — Production operations (018+)
+
+| Компонент | Описание |
+|-----------|----------|
+| **Без bootstrap SQL** | Схема только через `migrations/` |
+| **Static frontend** | nginx в dev и prod compose |
+| **docker-compose.prod.yml** | prod secrets через `.env.prod` |
+| **Redis rate limit** | `REDIS_ADDR` для реплик |
+| **Метрики** | `treepage_*` на `/metrics` |
+| **Helm ServiceMonitor / backup** | опционально в chart |
+| **Sync → OpenSearch** | internal reindex после Git sync |
+
+---
+
 ## Связанные разделы
 
 - [Архитектура](architecture.md)

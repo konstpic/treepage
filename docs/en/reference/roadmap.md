@@ -221,6 +221,30 @@ See [Git webhooks](../operator/git-webhooks.md).
 
 ---
 
+## P0 — Production operations (018+)
+
+| Component | Description |
+|-----------|-------------|
+| **No bootstrap SQL** | Schema only via `migrations/` (018 removes main.go duplicates) |
+| **Static frontend** | nginx + `deploy/docker/Dockerfile.frontend` in dev and prod compose |
+| **docker-compose.prod.yml** | `DEV_MODE=false`, secrets via `.env.prod` |
+| **Redis rate limit** | `REDIS_ADDR` → distributed limit across replicas |
+| **App metrics** | `treepage_*` Prometheus counters/histograms on `/metrics` |
+| **Helm ServiceMonitor** | `monitoring.serviceMonitor.enabled` in backend chart |
+| **Helm backup CronJob** | `backup.enabled` — pg_dump schedule |
+| **Sync → OpenSearch** | sync calls `POST /api/internal/documents/:id/reindex` after Git pull |
+
+Deploy:
+
+```bash
+cp .env.prod.example .env.prod   # fill secrets
+./scripts/deploy-prod.sh
+cp docker-compose.dev.yml.example .env   # dev
+./scripts/deploy-dev.sh
+```
+
+---
+
 ## Related sections
 
 - [Architecture](architecture.md)

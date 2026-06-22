@@ -20,6 +20,7 @@ import (
 	"github.com/konstpic/treepage/backend/pkg/health"
 	pkgjwt "github.com/konstpic/treepage/backend/pkg/jwt"
 	"github.com/konstpic/treepage/backend/pkg/logging"
+	"github.com/konstpic/treepage/backend/pkg/metrics"
 	"github.com/konstpic/treepage/backend/pkg/middleware"
 	"go.uber.org/zap"
 	"golang.org/x/oauth2"
@@ -98,12 +99,15 @@ func main() {
 		}
 	}
 
+	metrics.Register()
+
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
 	r.Use(gin.Recovery())
 	r.Use(middleware.SecureHeaders())
 	r.Use(middleware.CORS(cfg.Security.AllowedOrigins))
-	r.Use(middleware.RateLimit(cfg.Security.RateLimitRPS))
+	r.Use(middleware.RateLimitFromEnv("auth", cfg.Security.RateLimitRPS))
+	r.Use(middleware.PrometheusHTTP("auth"))
 	r.Use(middleware.AccessLogger(logLevel, middleware.ZapAccessLog(log)))
 
 	h := health.NewHandler(func(ctx context.Context) error {

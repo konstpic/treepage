@@ -36,4 +36,4 @@ echo ">>> status"
 docker compose -f "$COMPOSE_FILE" ps
 
 echo ""
-echo "Done. UI: http://$(hostname -I 2>/dev/null | awk '{print $1}' || echo localhost):5173"
+echo "Done. UI: http://$(hostname -I 2>/dev/null | awk '{print $1}' || echo localhost)/"
