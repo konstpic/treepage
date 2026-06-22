@@ -27,6 +27,7 @@ EMBEDDING_MODEL=nomic-embed-text
 # NOTIFY_SMTP_USER=
 # NOTIFY_SMTP_PASSWORD=
 
-# Optional search scale
+# Optional: host port for static frontend (default 8080 if :80 is taken)
+FRONTEND_PORT=8080
 # SEARCH_BACKEND=opensearch
 # OPENSEARCH_URL=http://opensearch:9200

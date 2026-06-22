@@ -136,7 +136,7 @@ services:
       context: .
       dockerfile: deploy/docker/Dockerfile.frontend
     ports:
-      - "80:80"
+      - "${FRONTEND_PORT:-8080}:80"
     depends_on:
       backend-auth:
         condition: service_healthy
