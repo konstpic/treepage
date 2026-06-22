@@ -4,6 +4,9 @@ import { Loader2, Trash2 } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { FadeIn } from "@/components/motion-wrapper";
 import { useAdminGuard } from "./layout";
+import { useI18n } from "@/lib/i18n";
+
+const configManagedName = "Authentik (config)";
 
 interface OIDCProvider {
   id: string;
@@ -21,6 +24,7 @@ interface OIDCProvider {
 
 export function AdminOIDCPage() {
   const { ready } = useAdminGuard();
+  const { t } = useI18n();
   const qc = useQueryClient();
   const [error, setError] = useState("");
 
@@ -64,8 +68,8 @@ export function AdminOIDCPage() {
   return (
     <FadeIn>
       <div className="glass p-6">
-        <h2 className="text-lg font-semibold text-fg">OIDC Providers</h2>
-        <p className="mt-1 text-sm text-muted">Configure identity providers for SSO</p>
+        <h2 className="text-lg font-semibold text-fg">{t("admin.nav.oidc")}</h2>
+        <p className="mt-1 text-sm text-muted">{t("admin.oidcPageHint")}</p>
 
         {isLoading ? (
           <div className="flex justify-center py-12">
@@ -79,9 +83,17 @@ export function AdminOIDCPage() {
                 className="flex items-start justify-between gap-4 rounded-xl border border-default bg-surface-muted px-4 py-3"
               >
                 <div>
-                  <p className="font-medium text-fg">{p.name}</p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="font-medium text-fg">{p.name}</p>
+                    {p.name === configManagedName && (
+                      <span className="badge badge-neutral">{t("admin.oidcConfigBadge")}</span>
+                    )}
+                  </div>
                   <p className="text-xs text-subtle">{p.issuer_url}</p>
-                  <p className="mt-1 text-xs text-subtle">Client: {p.client_id}</p>
+                  <p className="mt-1 text-xs text-subtle">{t("admin.oidcClient")}: {p.client_id}</p>
+                  {p.name === configManagedName && (
+                    <p className="mt-2 text-xs text-muted">{t("admin.oidcConfigHint")}</p>
+                  )}
                   <p className="mt-1 text-xs text-subtle">
                     Claims: {p.role_claim || "roles"} / {p.group_claim || "groups"}
                     {p.sync_groups && " · sync groups"}
@@ -100,6 +112,8 @@ export function AdminOIDCPage() {
                   <button
                     type="button"
                     className="btn-ghost text-danger-soft hover:text-rose-300"
+                    disabled={p.name === configManagedName}
+                    title={p.name === configManagedName ? t("admin.oidcConfigHint") : undefined}
                     onClick={() => remove.mutate(p.id)}
                   >
                     <Trash2 className="h-4 w-4" />
@@ -108,7 +122,7 @@ export function AdminOIDCPage() {
               </div>
             ))}
             {data?.items.length === 0 && (
-              <p className="text-sm text-subtle">No OIDC providers configured.</p>
+              <p className="text-sm text-subtle">{t("admin.oidcNone")}</p>
             )}
           </div>
         )}

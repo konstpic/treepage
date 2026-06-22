@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Languages, Loader2, Palette } from "lucide-react";
+import { Languages, Loader2, Palette, Shield } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { FadeIn } from "@/components/motion-wrapper";
+import { SettingsCard } from "@/components/help-hint";
 import { useAdminGuard } from "./layout";
 import { DEFAULT_UI_THEME, UI_THEMES, type UIThemeId } from "@/lib/theme";
 import { UI_LANGUAGES, type LocaleId } from "@/lib/locale";
@@ -17,6 +19,14 @@ interface SystemSettings {
   platform: Record<string, unknown>;
   ui_theme: UIThemeId;
   ui_language: LocaleId;
+}
+
+interface OIDCProviderSummary {
+  id: string;
+  name: string;
+  issuer_url: string;
+  client_id: string;
+  enabled: boolean;
 }
 
 export function AdminSettingsPage() {
@@ -44,6 +54,12 @@ export function AdminSettingsPage() {
     queryKey: ["admin-settings"],
     queryFn: () => api<SystemSettings>("/api/admin/system-settings"),
     enabled: ready,
+  });
+
+  const { data: oidcData } = useQuery({
+    queryKey: ["admin-oidc"],
+    queryFn: () => api<{ items: OIDCProviderSummary[] }>("/api/admin/oidc-providers"),
+    enabled: ready && isSuperAdmin,
   });
 
   useEffect(() => {
@@ -218,13 +234,12 @@ export function AdminSettingsPage() {
             <p className="text-sm text-warning">{t("admin.readOnly")}</p>
           )}
 
-          <div className="glass p-6">
-            <div className="flex items-center gap-2">
-              <Languages className="h-5 w-5 text-primary" />
-              <h2 className="text-lg font-semibold text-fg">{t("admin.language")}</h2>
-            </div>
-            <p className="mt-1 text-sm text-muted">{t("admin.languageHint")}</p>
-
+          <SettingsCard
+            title={t("admin.language")}
+            hint={t("admin.languageHint")}
+            help={t("admin.help.language")}
+            icon={<Languages className="h-5 w-5 text-primary" />}
+          >
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               {UI_LANGUAGES.map((lang) => (
                 <button
@@ -252,15 +267,14 @@ export function AdminSettingsPage() {
             {languageSaved && !saveLanguage.isPending && (
               <p className="mt-3 text-sm text-success-soft">{t("admin.languageSaved")}</p>
             )}
-          </div>
+          </SettingsCard>
 
-          <div className="glass p-6">
-            <div className="flex items-center gap-2">
-              <Palette className="h-5 w-5 text-primary" />
-              <h2 className="text-lg font-semibold text-fg">{t("admin.appearance")}</h2>
-            </div>
-            <p className="mt-1 text-sm text-muted">{t("admin.appearanceHint")}</p>
-
+          <SettingsCard
+            title={t("admin.appearance")}
+            hint={t("admin.appearanceHint")}
+            help={t("admin.help.appearance")}
+            icon={<Palette className="h-5 w-5 text-primary" />}
+          >
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               {UI_THEMES.map((theme) => (
                 <button
@@ -288,15 +302,14 @@ export function AdminSettingsPage() {
             {themeSaved && !saveTheme.isPending && (
               <p className="mt-3 text-sm text-success-soft">{t("admin.themeSaved")}</p>
             )}
-          </div>
+          </SettingsCard>
 
-          <div className="glass p-6">
-            <div className="flex items-center gap-2">
-              <Languages className="h-5 w-5 text-primary" />
-              <h2 className="text-lg font-semibold text-fg">{t("admin.autoTranslateDocs")}</h2>
-            </div>
-            <p className="mt-1 text-sm text-muted">{t("admin.autoTranslateHint")}</p>
-
+          <SettingsCard
+            title={t("admin.autoTranslateDocs")}
+            hint={t("admin.autoTranslateHint")}
+            help={t("admin.help.autoTranslate")}
+            icon={<Languages className="h-5 w-5 text-primary" />}
+          >
             <label className="mt-4 flex items-center justify-between gap-4 rounded-xl border border-default px-4 py-3">
               <span className="text-sm text-fg-secondary">{t("admin.autoTranslateDocs")}</span>
               <input
@@ -317,35 +330,68 @@ export function AdminSettingsPage() {
             {autoTranslateSaved && !saveAutoTranslate.isPending && (
               <p className="mt-3 text-sm text-success-soft">{t("admin.autoTranslateSaved")}</p>
             )}
-          </div>
+          </SettingsCard>
 
-          <div className="glass p-6">
-            <h2 className="text-lg font-semibold text-fg">{t("admin.authentication")}</h2>
+          <SettingsCard
+            title={t("admin.authentication")}
+            help={t("admin.help.authentication")}
+            icon={<Shield className="h-5 w-5 text-primary" />}
+          >
             <div className="mt-4 space-y-3">
               {boolField(auth, setAuth, "oidc_enabled", t("admin.enableOidc"))}
               {boolField(auth, setAuth, "local_auth_fallback", t("admin.localAuthFallback"))}
             </div>
-          </div>
 
-          <div className="glass p-6">
-            <h2 className="text-lg font-semibold text-fg">{t("admin.gitIntegration")}</h2>
+            {isSuperAdmin && (
+              <div className="mt-5 rounded-xl border border-default bg-surface-muted p-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-sm font-medium text-fg">{t("admin.oidcProvidersTitle")}</p>
+                  <Link to="/admin/oidc" className="text-sm text-primary hover:underline">
+                    {t("admin.oidcManage")}
+                  </Link>
+                </div>
+                {oidcData?.items.length ? (
+                  <ul className="mt-3 space-y-2">
+                    {oidcData.items.map((p) => (
+                      <li
+                        key={p.id}
+                        className="rounded-lg border border-default bg-surface px-3 py-2 text-sm"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-medium text-fg">{p.name}</span>
+                          <span className={p.enabled ? "badge badge-success" : "badge badge-neutral"}>
+                            {p.enabled ? t("admin.oidcEnabled") : t("admin.oidcDisabled")}
+                          </span>
+                        </div>
+                        <p className="mt-1 truncate text-xs text-subtle">{p.issuer_url}</p>
+                        <p className="text-xs text-subtle">{t("admin.oidcClient")}: {p.client_id}</p>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="mt-2 text-sm text-subtle">{t("admin.oidcNone")}</p>
+                )}
+              </div>
+            )}
+          </SettingsCard>
+
+          <SettingsCard title={t("admin.gitIntegration")} help={t("admin.help.git")}>
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
               {textField(git, setGit, "access_token_ref", t("admin.globalTokenRef"), "GIT_ACCESS_TOKEN")}
               {textField(git, setGit, "webhook_secret_ref", t("admin.webhookSecretRef"), "GIT_WEBHOOK_SECRET")}
               {textField(git, setGit, "default_sync_interval_seconds", t("admin.syncInterval"), "300")}
               {textField(git, setGit, "default_sync_mode", t("admin.syncMode"), "scheduled")}
             </div>
-          </div>
+          </SettingsCard>
 
-          <div className="glass p-6">
-            <h2 className="text-lg font-semibold text-fg">{t("admin.platform")}</h2>
+          <SettingsCard title={t("admin.platform")} help={t("admin.help.platform")}>
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
               {textField(platform, setPlatform, "search_default_limit", t("admin.searchDefaultLimit"), "20")}
               {textField(platform, setPlatform, "search_max_limit", t("admin.searchMaxLimit"), "100")}
               {boolField(platform, setPlatform, "cache_enabled", t("admin.cacheEnabled"))}
               {textField(platform, setPlatform, "logging_level", t("admin.loggingLevel"), "info")}
             </div>
-          </div>
+          </SettingsCard>
 
           {error && <p className="text-sm text-danger-soft">{error}</p>}
           {saved && <p className="text-sm text-success-soft">{t("admin.settingsSaved")}</p>}

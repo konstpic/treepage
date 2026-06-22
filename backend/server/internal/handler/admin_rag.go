@@ -12,7 +12,24 @@ func (h *AdminHandler) GetRAGStatus(c *gin.Context) {
 		c.JSON(200, gin.H{"phase": "unavailable"})
 		return
 	}
-	c.JSON(200, h.ragWorker.Status())
+	status := h.ragWorker.Status()
+	if h.base.rag != nil {
+		if stats, err := h.base.rag.IndexStats(c.Request.Context()); err == nil {
+			status.PublishedDocuments = stats.PublishedDocuments
+			status.DocumentsWithChunks = stats.DocumentsWithChunks
+			status.ChunksTotal = stats.ChunksTotal
+			status.ChunksEmbedded = stats.ChunksEmbedded
+			status.ChunksPending = stats.ChunksPending
+			status.EmbeddingsEnabled = stats.EmbeddingsEnabled
+			if status.DocumentsTotal == 0 {
+				status.DocumentsTotal = stats.PublishedDocuments
+			}
+			if status.DocumentsDone == 0 && !status.Running {
+				status.DocumentsDone = stats.DocumentsWithChunks
+			}
+		}
+	}
+	c.JSON(200, status)
 }
 
 func (h *AdminHandler) TriggerRAGReindex(c *gin.Context) {

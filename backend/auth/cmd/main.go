@@ -83,6 +83,14 @@ func main() {
 	}
 	log.Info("local admin bootstrap enabled; password login available for users with a local password")
 
+	if cfg.OIDC.Enabled {
+		if err := authSvc.BootstrapOIDCFromConfig(ctx, cfg.OIDC); err != nil {
+			log.Warn("oidc provider db sync failed", zap.Error(err))
+		} else {
+			log.Info("oidc provider synced to admin catalog")
+		}
+	}
+
 	var oidcProvider *oidc.Provider
 	var oauth2Cfg *oauth2.Config
 	if cfg.OIDC.Enabled && cfg.OIDC.IssuerURL != "" {

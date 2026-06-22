@@ -11,16 +11,21 @@ import (
 
 // WorkerStatus describes background RAG indexing progress.
 type WorkerStatus struct {
-	Phase           string     `json:"phase"`
-	Running         bool       `json:"running"`
-	StartedAt       *time.Time `json:"started_at,omitempty"`
-	UpdatedAt       *time.Time `json:"updated_at,omitempty"`
-	DocumentsTotal  int        `json:"documents_total"`
-	DocumentsDone   int        `json:"documents_done"`
-	ChunksEmbedded  int        `json:"chunks_embedded"`
-	ChunksPending   int64      `json:"chunks_pending"`
-	PgVectorEnabled bool       `json:"pgvector_enabled"`
-	Error           string     `json:"error,omitempty"`
+	Phase               string     `json:"phase"`
+	Running             bool       `json:"running"`
+	StartedAt           *time.Time `json:"started_at,omitempty"`
+	UpdatedAt           *time.Time `json:"updated_at,omitempty"`
+	DocumentsTotal      int        `json:"documents_total"`
+	DocumentsDone       int        `json:"documents_done"`
+	DocumentsWithChunks int        `json:"documents_with_chunks"`
+	PublishedDocuments  int        `json:"published_documents"`
+	ChunksTotal         int64      `json:"chunks_total"`
+	ChunksEmbedded      int64      `json:"chunks_embedded"`
+	ChunksEmbeddedRun   int        `json:"chunks_embedded_run"`
+	ChunksPending       int64      `json:"chunks_pending"`
+	EmbeddingsEnabled   bool       `json:"embeddings_enabled"`
+	PgVectorEnabled     bool       `json:"pgvector_enabled"`
+	Error               string     `json:"error,omitempty"`
 }
 
 // Worker runs RAG backfill asynchronously without blocking server readiness.
@@ -67,6 +72,22 @@ func (w *Worker) Start(ctx context.Context) {
 	go w.run(ctx)
 }
 
+func (w *Worker) refreshPersistedStats(ctx context.Context) {
+	stats, err := w.svc.IndexStats(ctx)
+	if err != nil {
+		return
+	}
+	w.setStatus(func(s *WorkerStatus) {
+		s.PublishedDocuments = stats.PublishedDocuments
+		s.DocumentsWithChunks = stats.DocumentsWithChunks
+		s.ChunksTotal = stats.ChunksTotal
+		s.ChunksEmbedded = stats.ChunksEmbedded
+		s.ChunksPending = stats.ChunksPending
+		s.EmbeddingsEnabled = stats.EmbeddingsEnabled
+		s.PgVectorEnabled = PgVectorEnabled(w.db)
+	})
+}
+
 func (w *Worker) run(ctx context.Context) {
 	w.setStatus(func(s *WorkerStatus) {
 		s.Phase = "starting"
@@ -75,6 +96,7 @@ func (w *Worker) run(ctx context.Context) {
 		s.StartedAt = &now
 		s.Error = ""
 	})
+	w.refreshPersistedStats(ctx)
 
 	var chunkCount int64
 	if err := w.db.WithContext(ctx).Table("document_chunks").Count(&chunkCount).Error; err != nil {
@@ -82,7 +104,13 @@ func (w *Worker) run(ctx context.Context) {
 		return
 	}
 
-	if chunkCount == 0 {
+	needsReindex := chunkCount == 0
+	if !needsReindex {
+		stats, _ := w.svc.IndexStats(ctx)
+		needsReindex = stats.PublishedDocuments > stats.DocumentsWithChunks
+	}
+
+	if needsReindex {
 		w.setStatus(func(s *WorkerStatus) { s.Phase = "reindex" })
 		n, err := w.svc.ReindexAllPublished(ctx)
 		w.setStatus(func(s *WorkerStatus) {
@@ -96,6 +124,7 @@ func (w *Worker) run(ctx context.Context) {
 		if w.logger != nil {
 			w.logger.Info("rag worker reindex completed", zap.Int("documents", n))
 		}
+		w.refreshPersistedStats(ctx)
 	}
 
 	if w.svc.embed != nil && w.svc.embed.Available() {
@@ -111,7 +140,7 @@ func (w *Worker) run(ctx context.Context) {
 			default:
 			}
 			n, err := w.svc.backfillEmbeddings(ctx, 20)
-			w.setStatus(func(s *WorkerStatus) { s.ChunksEmbedded += n })
+			w.setStatus(func(s *WorkerStatus) { s.ChunksEmbeddedRun += n })
 			if err != nil {
 				w.fail(err)
 				return
@@ -137,11 +166,11 @@ func (w *Worker) run(ctx context.Context) {
 
 	var pending int64
 	_ = w.db.WithContext(ctx).Table("document_chunks").Where("embedding IS NULL").Count(&pending).Error
+	w.refreshPersistedStats(ctx)
 	w.setStatus(func(s *WorkerStatus) {
 		s.ChunksPending = pending
 		s.Phase = "done"
 		s.Running = false
-		s.PgVectorEnabled = PgVectorEnabled(w.db)
 	})
 	if w.logger != nil {
 		w.logger.Info("rag worker finished", zap.Int64("chunks_pending", pending))
@@ -166,6 +195,7 @@ func (w *Worker) TriggerReindex(ctx context.Context) {
 			s.Phase = "reindex"
 			s.Running = true
 			s.DocumentsDone = 0
+			s.ChunksEmbeddedRun = 0
 			s.Error = ""
 			now := time.Now()
 			s.StartedAt = &now
@@ -179,6 +209,23 @@ func (w *Worker) TriggerReindex(ctx context.Context) {
 			w.fail(err)
 			return
 		}
+		w.refreshPersistedStats(ctx)
+
+		if w.svc.embed != nil && w.svc.embed.Available() {
+			w.setStatus(func(s *WorkerStatus) { s.Phase = "embeddings" })
+			for {
+				embedded, err := w.svc.backfillEmbeddings(ctx, 20)
+				w.setStatus(func(s *WorkerStatus) { s.ChunksEmbeddedRun += embedded })
+				if err != nil {
+					w.fail(err)
+					return
+				}
+				if embedded == 0 {
+					break
+				}
+			}
+		}
+		w.refreshPersistedStats(ctx)
 		w.setStatus(func(s *WorkerStatus) {
 			s.Phase = "done"
 			s.Running = false

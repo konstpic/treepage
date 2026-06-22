@@ -21,11 +21,18 @@ func IndexDocument(ctx context.Context, db *gorm.DB, doc *models.Document) error
 }
 
 func IndexDocumentWithEmbedder(ctx context.Context, db *gorm.DB, doc *models.Document, embedder Embedder) error {
-	hash := contentHash(doc.Content)
+	content := DocumentContentForIndex(doc)
+	if strings.TrimSpace(content) == "" {
+		if err := db.WithContext(ctx).Where("document_id = ?", doc.ID).Delete(&models.DocumentChunk{}).Error; err != nil {
+			return err
+		}
+		return nil
+	}
+	hash := contentHash(content)
 	if err := db.WithContext(ctx).Where("document_id = ?", doc.ID).Delete(&models.DocumentChunk{}).Error; err != nil {
 		return err
 	}
-	chunks := splitChunks(doc.Content, 1200)
+	chunks := splitChunks(content, 1200)
 	for i, chunk := range chunks {
 		if strings.TrimSpace(chunk) == "" {
 			continue
@@ -73,6 +80,17 @@ func splitChunks(content string, maxLen int) []string {
 		return []string{content}
 	}
 	return chunks
+}
+
+// DocumentContentForIndex returns markdown text used for chunking (live content or last Git snapshot).
+func DocumentContentForIndex(doc *models.Document) string {
+	if doc == nil {
+		return ""
+	}
+	if strings.TrimSpace(doc.Content) != "" {
+		return doc.Content
+	}
+	return doc.SyncSnapshotContent
 }
 
 func contentHash(content string) string {
