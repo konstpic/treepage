@@ -93,3 +93,5 @@ services:
 volumes:
   authentik_postgres:
   authentik_redis:
+  authentik_media:
+  authentik_templates:
