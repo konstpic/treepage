@@ -35,10 +35,9 @@ fi
 
 echo ">>> Reset Authentik bootstrap admin ($EMAIL)"
 
-docker compose "${compose_args[@]}" exec -T \
-  -e "BOOTSTRAP_EMAIL=${EMAIL}" \
-  -e "BOOTSTRAP_PASSWORD=${PASS}" \
-  authentik-server ak shell <<'PY'
+docker compose "${compose_args[@]}" exec -T authentik-server \
+  env "BOOTSTRAP_EMAIL=${EMAIL}" "BOOTSTRAP_PASSWORD=${PASS}" \
+  ak shell <<'PY'
 import os
 from authentik.core.models import User
 
