@@ -50,8 +50,8 @@ services:
       AUTHENTIK_DISABLE_UPDATE_CHECK: "true"
       AUTHENTIK_DISABLE_STARTUP_ANALYTICS: "true"
     volumes:
-      - ./deploy/authentik/media:/media
-      - ./deploy/authentik/custom-templates:/templates
+      - authentik_media:/media
+      - authentik_templates:/templates
       - ./deploy/authentik/blueprints:/blueprints/custom:ro
     ports:
       - "${AUTHENTIK_PORT:-9000}:9000"
@@ -75,8 +75,8 @@ services:
       AUTHENTIK_ERROR_REPORTING__ENABLED: "false"
       AUTHENTIK_DISABLE_UPDATE_CHECK: "true"
     volumes:
-      - ./deploy/authentik/media:/media
-      - ./deploy/authentik/custom-templates:/templates
+      - authentik_media:/media
+      - authentik_templates:/templates
       - ./deploy/authentik/blueprints:/blueprints/custom:ro
     depends_on:
       authentik-postgres:
