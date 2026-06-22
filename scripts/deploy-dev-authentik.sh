@@ -15,7 +15,7 @@ if [[ -f .env.authentik ]]; then
   set +a
 fi
 
-exec "$ROOT/scripts/deploy-dev.sh" "$@"
+"$ROOT/scripts/deploy-dev.sh" "$@"
 
 echo ""
 echo ">>> Authentik bootstrap admin password sync"

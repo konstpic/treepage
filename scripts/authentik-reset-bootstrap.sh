@@ -35,16 +35,22 @@ fi
 
 echo ">>> Reset Authentik bootstrap admin ($EMAIL)"
 
-docker compose "${compose_args[@]}" exec -T authentik-server ak shell <<EOF
+docker compose "${compose_args[@]}" exec -T \
+  -e "BOOTSTRAP_EMAIL=${EMAIL}" \
+  -e "BOOTSTRAP_PASSWORD=${PASS}" \
+  authentik-server ak shell <<'PY'
+import os
 from authentik.core.models import User
 
-email = "${EMAIL}"
-password = "${PASS}"
+email = os.environ["BOOTSTRAP_EMAIL"]
+password = os.environ["BOOTSTRAP_PASSWORD"]
 user = User.objects.filter(email=email).first() or User.objects.filter(username="akadmin").first()
 if user is None:
     raise SystemExit("Bootstrap admin not found")
+if user.email != email:
+    user.email = email
 user.set_password(password)
 user.is_active = True
 user.save()
 print(f"Password reset for {user.username} ({user.email})")
-EOF
+PY
