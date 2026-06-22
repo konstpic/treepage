@@ -88,7 +88,16 @@ func main() {
 	if cfg.OIDC.Enabled && cfg.OIDC.IssuerURL != "" {
 		ctx := context.Background()
 		var err error
-		oidcProvider, err = oidc.NewProvider(ctx, cfg.OIDC.IssuerURL)
+		for attempt := 1; attempt <= 12; attempt++ {
+			oidcProvider, err = oidc.NewProvider(ctx, cfg.OIDC.IssuerURL)
+			if err == nil {
+				break
+			}
+			if attempt < 12 {
+				log.Warn("oidc provider init retry", zap.Int("attempt", attempt), zap.Error(err))
+				time.Sleep(5 * time.Second)
+			}
+		}
 		if err != nil {
 			log.Warn("oidc provider init failed, login disabled", zap.Error(err))
 		} else {
