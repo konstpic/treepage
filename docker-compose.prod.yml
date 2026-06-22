@@ -38,7 +38,7 @@ services:
       CSRF_SECRET: ${CSRF_SECRET:?CSRF_SECRET required}
       REDIS_ADDR: redis:6379
     volumes:
-      - ./backend/auth/conf/config.yml:/opt/app/conf/config.yml:ro
+      - ./backend/auth/conf:/opt/app/conf:ro
     depends_on:
       postgres:
         condition: service_healthy

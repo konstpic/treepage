@@ -1,0 +1,95 @@
+# Optional Authentik IdP for local OIDC testing.
+# Usage:
+#   docker compose -f docker-compose.dev.yml -f docker-compose.authentik.yml --env-file .env up -d
+#   ./scripts/deploy-dev-authentik.sh
+#
+# TreePage UI:     http://localhost:8080
+# Authentik admin: http://localhost:9000/if/admin/  (see .env.authentik.example)
+
+services:
+  authentik-postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: authentik
+      POSTGRES_PASSWORD: ${AUTHENTIK_PG_PASS:-authentik}
+      POSTGRES_DB: authentik
+    volumes:
+      - authentik_postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d authentik -U authentik"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  authentik-redis:
+    image: redis:7-alpine
+    command: --save 60 1 --loglevel warning
+    volumes:
+      - authentik_redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  authentik-server:
+    image: ghcr.io/goauthentik/server:${AUTHENTIK_TAG:-2025.2.4}
+    command: server
+    environment:
+      AUTHENTIK_REDIS__HOST: authentik-redis
+      AUTHENTIK_POSTGRESQL__HOST: authentik-postgres
+      AUTHENTIK_POSTGRESQL__USER: authentik
+      AUTHENTIK_POSTGRESQL__NAME: authentik
+      AUTHENTIK_POSTGRESQL__PASSWORD: ${AUTHENTIK_PG_PASS:-authentik}
+      AUTHENTIK_SECRET_KEY: ${AUTHENTIK_SECRET_KEY:-dev-authentik-secret-key-change-me}
+      AUTHENTIK_BOOTSTRAP_EMAIL: ${AUTHENTIK_BOOTSTRAP_EMAIL:-admin@authentik.local}
+      AUTHENTIK_BOOTSTRAP_PASSWORD: ${AUTHENTIK_BOOTSTRAP_PASSWORD:-authentik}
+      AUTHENTIK_ERROR_REPORTING__ENABLED: "false"
+      AUTHENTIK_DISABLE_UPDATE_CHECK: "true"
+      AUTHENTIK_DISABLE_STARTUP_ANALYTICS: "true"
+    volumes:
+      - ./deploy/authentik/media:/media
+      - ./deploy/authentik/custom-templates:/templates
+      - ./deploy/authentik/blueprints:/blueprints/custom:ro
+    ports:
+      - "${AUTHENTIK_PORT:-9000}:9000"
+    depends_on:
+      authentik-postgres:
+        condition: service_healthy
+      authentik-redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  authentik-worker:
+    image: ghcr.io/goauthentik/server:${AUTHENTIK_TAG:-2025.2.4}
+    command: worker
+    environment:
+      AUTHENTIK_REDIS__HOST: authentik-redis
+      AUTHENTIK_POSTGRESQL__HOST: authentik-postgres
+      AUTHENTIK_POSTGRESQL__USER: authentik
+      AUTHENTIK_POSTGRESQL__NAME: authentik
+      AUTHENTIK_POSTGRESQL__PASSWORD: ${AUTHENTIK_PG_PASS:-authentik}
+      AUTHENTIK_SECRET_KEY: ${AUTHENTIK_SECRET_KEY:-dev-authentik-secret-key-change-me}
+      AUTHENTIK_ERROR_REPORTING__ENABLED: "false"
+      AUTHENTIK_DISABLE_UPDATE_CHECK: "true"
+    volumes:
+      - ./deploy/authentik/media:/media
+      - ./deploy/authentik/custom-templates:/templates
+      - ./deploy/authentik/blueprints:/blueprints/custom:ro
+    depends_on:
+      authentik-postgres:
+        condition: service_healthy
+      authentik-redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  backend-auth:
+    environment:
+      CONFIG_PATH: ${AUTH_CONFIG_PATH:-/opt/app/conf/config.authentik.yml}
+      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-treepage-authentik-dev-secret}
+
+volumes:
+  authentik_postgres:
+  authentik_redis:

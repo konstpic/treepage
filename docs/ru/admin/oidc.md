@@ -32,6 +32,10 @@ Client secret задаётся через env (`OIDC_CLIENT_SECRET`) или Kube
 
 ## Настройка на стороне провайдера
 
+### Authentik (локальный dev)
+
+См. [Тест OIDC с Authentik](../getting-started/authentik-oidc-test.md) — overlay Docker Compose с готовым OAuth2-клиентом.
+
 ### Keycloak
 
 1. **Clients** → Create client

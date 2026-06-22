@@ -1,0 +1,32 @@
+# OIDC claim mappings for TreePage (roles + groups in id_token).
+---
+version: 1
+metadata:
+  name: TreePage OIDC claims
+  labels:
+    blueprints.goauthentik.io/instantiate: "true"
+entries:
+  - model: authentik_providers_oauth2.scopemapping
+    identifiers:
+      name: treepage-roles
+    attrs:
+      name: treepage-roles
+      scope_name: roles
+      description: TreePage RBAC roles from user.attributes.treepage_roles
+      expression: |
+        raw = request.user.attributes.get("treepage_roles", [])
+        if raw is None:
+          raw = []
+        if isinstance(raw, str):
+          raw = [raw]
+        return {"roles": list(raw)}
+
+  - model: authentik_providers_oauth2.scopemapping
+    identifiers:
+      name: treepage-groups
+    attrs:
+      name: treepage-groups
+      scope_name: groups
+      description: TreePage group sync from Authentik group membership
+      expression: |
+        return {"groups": [group.name for group in request.user.ak_groups.all()]}

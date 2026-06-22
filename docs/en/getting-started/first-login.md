@@ -12,21 +12,23 @@ On first startup TreePage automatically creates an administrator account and a *
 | Password | `admin` |
 | Role | `super_admin` |
 
-> Available when `DEV_MODE=true` (Docker Compose default). **Change the password right after login:** Settings → Users.
+> **Always available** — for first setup and when the OIDC provider is unavailable. **Change the password right after login:** Settings → Users.
 
 ### Step by step
 
-1. Run `docker compose up --build`
-2. Open http://localhost:5173
+1. Run `docker compose up --build` (or `./scripts/deploy-dev.sh`)
+2. Open http://localhost:8080
 3. Click **Sign in** → `/auth`
 4. Enter `admin@local` / `admin` (fields may be pre-filled)
 5. After login open **Spaces** → **Welcome** (`/spaces/welcome`)
 
 More about the welcome space: [Welcome space](welcome-space.md).
 
-## Development mode (Docker Compose)
+## Local admin vs OIDC
 
-When running via `docker compose up`, dev mode is enabled (`DEV_MODE=true`). The auth service bootstrap creates `admin@local` on first start.
+The login page always offers **local sign-in** (for accounts with a password) and **OIDC** when configured. Use local admin for initial setup; OIDC for day-to-day SSO.
+
+To test OIDC locally with Authentik: [Authentik OIDC test](authentik-oidc-test.md).
 
 ## Production: OIDC login
 
@@ -67,7 +69,7 @@ Some spaces may be marked as **public** — their documentation is available wit
 |---------|----------|
 | "OIDC unavailable" | Check OIDC settings in Helm/config and provider availability |
 | Redirect loop | Check `frontendUrl` and redirect URL in the OIDC client |
-| "Login failed" (dev) | Ensure `DEV_MODE=true` and `ENV != prod` |
+| "Login failed" (local) | Check email/password; account must have a local password set |
 | 401 on API after login | Verify `JWT_SECRET` matches between auth and server |
 
 Details: [Troubleshooting](../operator/troubleshooting.md).

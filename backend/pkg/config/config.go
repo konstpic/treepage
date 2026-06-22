@@ -276,6 +276,9 @@ type OIDCConfig struct {
 	ClientSecret string `yaml:"-"`
 	RedirectURL  string `yaml:"redirect_url"`
 	Scopes       string `yaml:"scopes"`
+	RoleClaim    string `yaml:"role_claim"`
+	GroupClaim   string `yaml:"group_claim"`
+	SyncGroups   bool   `yaml:"sync_groups"`
 }
 
 type GitConfig struct {

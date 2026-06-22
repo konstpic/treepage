@@ -1,0 +1,213 @@
+# 10 OIDC test users with varied roles and group membership.
+# Password for all: Test123!
+---
+version: 1
+metadata:
+  name: TreePage test users
+  labels:
+    blueprints.goauthentik.io/instantiate: "true"
+entries:
+  - model: authentik_core.group
+    identifiers:
+      name: platform-team
+    attrs:
+      name: platform-team
+
+  - model: authentik_core.group
+    identifiers:
+      name: admins
+    attrs:
+      name: admins
+
+  - model: authentik_core.group
+    identifiers:
+      name: ops-team
+    attrs:
+      name: ops-team
+
+  - model: authentik_core.group
+    identifiers:
+      name: developers
+    attrs:
+      name: developers
+
+  - model: authentik_core.group
+    identifiers:
+      name: docs-writers
+    attrs:
+      name: docs-writers
+
+  - model: authentik_core.group
+    identifiers:
+      name: docs-readers
+    attrs:
+      name: docs-readers
+
+  - model: authentik_core.group
+    identifiers:
+      name: guests
+    attrs:
+      name: guests
+
+  - model: authentik_core.group
+    identifiers:
+      name: contractors
+    attrs:
+      name: contractors
+
+  # super_admin + 2 groups
+  - model: authentik_core.user
+    identifiers:
+      username: alice.admin
+    attrs:
+      username: alice.admin
+      name: Alice Admin
+      email: alice.admin@test.local
+      password: Test123!
+      is_active: true
+      attributes:
+        treepage_roles:
+          - super_admin
+      groups:
+        - !Find [authentik_core.group, [name, platform-team]]
+        - !Find [authentik_core.group, [name, admins]]
+
+  # admin + 1 group
+  - model: authentik_core.user
+    identifiers:
+      username: bob.admin
+    attrs:
+      username: bob.admin
+      name: Bob Admin
+      email: bob.admin@test.local
+      password: Test123!
+      is_active: true
+      attributes:
+        treepage_roles:
+          - admin
+      groups:
+        - !Find [authentik_core.group, [name, ops-team]]
+
+  # editor + 2 groups
+  - model: authentik_core.user
+    identifiers:
+      username: carol.editor
+    attrs:
+      username: carol.editor
+      name: Carol Editor
+      email: carol.editor@test.local
+      password: Test123!
+      is_active: true
+      attributes:
+        treepage_roles:
+          - editor
+      groups:
+        - !Find [authentik_core.group, [name, developers]]
+        - !Find [authentik_core.group, [name, docs-writers]]
+
+  # editor + 1 group
+  - model: authentik_core.user
+    identifiers:
+      username: dave.editor
+    attrs:
+      username: dave.editor
+      name: Dave Editor
+      email: dave.editor@test.local
+      password: Test123!
+      is_active: true
+      attributes:
+        treepage_roles:
+          - editor
+      groups:
+        - !Find [authentik_core.group, [name, developers]]
+
+  # viewer + 1 group
+  - model: authentik_core.user
+    identifiers:
+      username: eve.viewer
+    attrs:
+      username: eve.viewer
+      name: Eve Viewer
+      email: eve.viewer@test.local
+      password: Test123!
+      is_active: true
+      attributes:
+        treepage_roles:
+          - viewer
+      groups:
+        - !Find [authentik_core.group, [name, docs-readers]]
+
+  # viewer, role only — no groups
+  - model: authentik_core.user
+    identifiers:
+      username: frank.viewer
+    attrs:
+      username: frank.viewer
+      name: Frank Viewer
+      email: frank.viewer@test.local
+      password: Test123!
+      is_active: true
+      attributes:
+        treepage_roles:
+          - viewer
+
+  # editor, role only — no groups
+  - model: authentik_core.user
+    identifiers:
+      username: grace.editor
+    attrs:
+      username: grace.editor
+      name: Grace Editor
+      email: grace.editor@test.local
+      password: Test123!
+      is_active: true
+      attributes:
+        treepage_roles:
+          - editor
+
+  # admin, role only — no groups
+  - model: authentik_core.user
+    identifiers:
+      username: henry.admin
+    attrs:
+      username: henry.admin
+      name: Henry Admin
+      email: henry.admin@test.local
+      password: Test123!
+      is_active: true
+      attributes:
+        treepage_roles:
+          - admin
+
+  # viewer + 2 groups
+  - model: authentik_core.user
+    identifiers:
+      username: iris.viewer
+    attrs:
+      username: iris.viewer
+      name: Iris Viewer
+      email: iris.viewer@test.local
+      password: Test123!
+      is_active: true
+      attributes:
+        treepage_roles:
+          - viewer
+      groups:
+        - !Find [authentik_core.group, [name, guests]]
+        - !Find [authentik_core.group, [name, docs-readers]]
+
+  # editor + contractors group
+  - model: authentik_core.user
+    identifiers:
+      username: jack.editor
+    attrs:
+      username: jack.editor
+      name: Jack Editor
+      email: jack.editor@test.local
+      password: Test123!
+      is_active: true
+      attributes:
+        treepage_roles:
+          - editor
+      groups:
+        - !Find [authentik_core.group, [name, contractors]]

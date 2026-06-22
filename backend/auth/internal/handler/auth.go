@@ -157,7 +157,7 @@ func (h *Handler) LoginLocal(c *gin.Context) {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid email or password"})
 			return
 		}
-		if errors.Is(err, service.ErrDevLoginDisabled) {
+		if errors.Is(err, service.ErrLocalLoginDisabled) {
 			c.JSON(http.StatusForbidden, gin.H{"error": "local login is disabled"})
 			return
 		}

@@ -29,5 +29,9 @@ EMBEDDING_MODEL=nomic-embed-text
 
 # Optional: host port for static frontend (default 8080 if :80 is taken)
 FRONTEND_PORT=8080
+
+# Optional: OIDC test with Authentik (see docs/en/getting-started/authentik-oidc-test.md)
+# ./scripts/deploy-dev-authentik.sh
+# OIDC_CLIENT_SECRET=treepage-authentik-dev-secret
 # SEARCH_BACKEND=opensearch
 # OPENSEARCH_URL=http://opensearch:9200

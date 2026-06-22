@@ -9,6 +9,12 @@ cd "$ROOT"
 COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.dev.yml}"
 export COMPOSE_BAKE="${COMPOSE_BAKE:-false}"
 
+compose_args=()
+IFS=':' read -r -a compose_files <<< "$COMPOSE_FILE"
+for f in "${compose_files[@]}"; do
+  compose_args+=(-f "$f")
+done
+
 echo "=== TreePage deploy (compose file: $COMPOSE_FILE) ==="
 echo ""
 echo "Build notes:"
@@ -20,20 +26,20 @@ echo ""
 if [[ "${1:-}" == "build-only" ]]; then
   shift
   echo ">>> docker compose build $*"
-  docker compose -f "$COMPOSE_FILE" build "$@"
+  docker compose "${compose_args[@]}" build "$@"
   exit 0
 fi
 
 echo ">>> docker compose build $*"
-docker compose -f "$COMPOSE_FILE" build "$@"
+docker compose "${compose_args[@]}" build "$@"
 
 echo ""
 echo ">>> docker compose up -d"
-docker compose -f "$COMPOSE_FILE" up -d
+docker compose "${compose_args[@]}" up -d
 
 echo ""
 echo ">>> status"
-docker compose -f "$COMPOSE_FILE" ps
+docker compose "${compose_args[@]}" ps
 
 echo ""
 echo "Done. UI: http://$(hostname -I 2>/dev/null | awk '{print $1}' || echo localhost):${FRONTEND_PORT:-8080}/"

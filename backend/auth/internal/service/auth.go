@@ -11,13 +11,18 @@ import (
 )
 
 type AuthService struct {
-	db     *gorm.DB
-	jwt    *pkgjwt.Manager
-	logger *zap.Logger
+	db           *gorm.DB
+	jwt          *pkgjwt.Manager
+	logger       *zap.Logger
+	oidcDefaults OIDCClaimSettings
 }
 
 func NewAuthService(db *gorm.DB, jwt *pkgjwt.Manager, logger *zap.Logger) *AuthService {
 	return &AuthService{db: db, jwt: jwt, logger: logger}
+}
+
+func (s *AuthService) SetOIDCClaimDefaults(settings OIDCClaimSettings) {
+	s.oidcDefaults = settings
 }
 
 type TokenPair struct {
@@ -108,7 +113,13 @@ type OIDCClaimSettings struct {
 }
 
 func (s *AuthService) GetOIDCClaimSettings(ctx context.Context) OIDCClaimSettings {
-	settings := OIDCClaimSettings{RoleClaim: "roles", GroupClaim: "groups"}
+	settings := s.oidcDefaults
+	if settings.RoleClaim == "" {
+		settings.RoleClaim = "roles"
+	}
+	if settings.GroupClaim == "" {
+		settings.GroupClaim = "groups"
+	}
 	var provider models.OIDCProvider
 	if err := s.db.WithContext(ctx).Where("enabled = ?", true).Order("created_at ASC").First(&provider).Error; err == nil {
 		if provider.RoleClaim != "" {

@@ -32,7 +32,7 @@ services:
     ports:
       - "8081:8081"
     environment:
-      CONFIG_PATH: /opt/app/conf/config.yml
+      CONFIG_PATH: ${AUTH_CONFIG_PATH:-/opt/app/conf/config.yml}
       DEV_MODE: ${DEV_MODE:-true}
       ENV: ${ENV:-dev}
       DB_PASSWORD: ${DB_PASSWORD:-treepage}
@@ -42,7 +42,7 @@ services:
       CSRF_SECRET: ${CSRF_SECRET:-dev-csrf-secret}
       REDIS_ADDR: redis:6379
     volumes:
-      - ./backend/auth/conf/config.yml:/opt/app/conf/config.yml:ro
+      - ./backend/auth/conf:/opt/app/conf:ro
     depends_on:
       postgres:
         condition: service_healthy

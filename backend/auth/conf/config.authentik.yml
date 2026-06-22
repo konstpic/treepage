@@ -10,11 +10,15 @@ postgres:
   ssl_mode: disable
 
 oidc:
-  enabled: false
-  issuer_url: ""
+  enabled: true
+  issuer_url: http://authentik-server:9000/application/o/treepage/
   client_id: treepage
+  client_secret: ""
   redirect_url: http://localhost:8080/api/auth/callback
-  scopes: openid profile email
+  scopes: openid profile email roles groups
+  role_claim: roles
+  group_claim: groups
+  sync_groups: true
 
 jwt:
   access_ttl: 15m
@@ -23,7 +27,7 @@ jwt:
   audience: treepage
 
 logging:
-  level: info   # debug | info | warn | error — override via LOG_LEVEL env
+  level: info
 
 security:
   rate_limit_rps: 100

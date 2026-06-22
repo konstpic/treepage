@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 
-	"github.com/konstpic/treepage/backend/auth/internal/devmode"
 	"github.com/konstpic/treepage/backend/pkg/models"
 	"go.uber.org/zap"
 	"golang.org/x/crypto/bcrypt"
@@ -18,7 +17,7 @@ const (
 )
 
 var (
-	ErrDevLoginDisabled = errors.New("local login is disabled")
+	ErrLocalLoginDisabled = errors.New("local login is disabled")
 	ErrInvalidCredentials = errors.New("invalid email or password")
 )
 
@@ -28,11 +27,9 @@ func (s *AuthService) EnsureLocalAuthSchema(ctx context.Context) error {
 	).Error
 }
 
-// BootstrapLocalAdmin creates the default dev admin when DEV_MODE is on and the user does not exist.
+// BootstrapLocalAdmin creates the default local admin on first startup if missing.
+// Used for initial setup and as a fallback when the OIDC provider is unavailable.
 func (s *AuthService) BootstrapLocalAdmin(ctx context.Context) error {
-	if !devmode.Enabled() {
-		return nil
-	}
 	if err := s.EnsureLocalAuthSchema(ctx); err != nil {
 		return err
 	}
@@ -74,10 +71,6 @@ type LocalLoginInput struct {
 }
 
 func (s *AuthService) LoginLocal(ctx context.Context, email, password string) (*UserProfile, *TokenPair, error) {
-	if !devmode.Enabled() {
-		return nil, nil, ErrDevLoginDisabled
-	}
-
 	var user models.User
 	err := s.db.WithContext(ctx).Where("email = ? AND is_active = ?", email, true).First(&user).Error
 	if err != nil {

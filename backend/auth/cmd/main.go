@@ -71,14 +71,17 @@ func main() {
 	}
 
 	authSvc := service.NewAuthService(db, jwtMgr, log)
+	authSvc.SetOIDCClaimDefaults(service.OIDCClaimSettings{
+		RoleClaim:  cfg.OIDC.RoleClaim,
+		GroupClaim: cfg.OIDC.GroupClaim,
+		SyncGroups: cfg.OIDC.SyncGroups,
+	})
 
 	ctx := context.Background()
 	if err := authSvc.BootstrapLocalAdmin(ctx); err != nil {
 		log.Fatal("bootstrap local admin failed", zap.Error(err))
 	}
-	if devmode.Enabled() {
-		log.Warn("DEV_MODE enabled: local password login is active (disabled when ENV=prod)")
-	}
+	log.Info("local admin bootstrap enabled; password login available for users with a local password")
 
 	var oidcProvider *oidc.Provider
 	var oauth2Cfg *oauth2.Config
@@ -115,7 +118,7 @@ func main() {
 	})
 	h.Register(r)
 
-	hdl := handler.New(authSvc, jwtMgr, handler.NewStateStoreFromEnv(handler.NewMemoryStateStore()), oidcProvider, oauth2Cfg, cfg.Frontend.URL, devmode.Enabled(), log)
+	hdl := handler.New(authSvc, jwtMgr, handler.NewStateStoreFromEnv(handler.NewMemoryStateStore()), oidcProvider, oauth2Cfg, cfg.Frontend.URL, devmode.LocalLoginEnabled(), log)
 	hdl.Register(r)
 
 	srv := &http.Server{Addr: cfg.Server.Addr(), Handler: r}
