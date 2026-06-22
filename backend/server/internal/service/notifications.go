@@ -5,15 +5,17 @@ import (
 	"time"
 
 	"github.com/konstpic/treepage/backend/pkg/models"
+	"github.com/konstpic/treepage/backend/pkg/notify"
 	"gorm.io/gorm"
 )
 
 type NotificationService struct {
-	db *gorm.DB
+	db      *gorm.DB
+	webhook *notify.Webhook
 }
 
-func NewNotificationService(db *gorm.DB) *NotificationService {
-	return &NotificationService{db: db}
+func NewNotificationService(db *gorm.DB, webhook *notify.Webhook) *NotificationService {
+	return &NotificationService{db: db, webhook: webhook}
 }
 
 func (s *NotificationService) List(ctx context.Context, userID string, limit int) ([]models.Notification, error) {
@@ -58,6 +60,12 @@ func (s *NotificationService) Create(ctx context.Context, userID, nType, title, 
 	}
 	if err := s.db.WithContext(ctx).Create(&n).Error; err != nil {
 		return nil, err
+	}
+	if s.webhook != nil {
+		go s.webhook.Notify(context.Background(), notify.Payload{
+			Type: nType, Title: title, Body: body, UserID: userID,
+			ResourceType: resourceType, ResourceID: resourceID,
+		})
 	}
 	return &n, nil
 }

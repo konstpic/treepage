@@ -5,20 +5,22 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/konstpic/treepage/backend/server/internal/rag"
 	"github.com/konstpic/treepage/backend/server/internal/service"
 	"github.com/konstpic/treepage/backend/server/internal/syncclient"
 	"gorm.io/gorm"
 )
 
 type AdminHandler struct {
-	admin    *service.AdminService
-	groups   *service.GroupService
-	spaces   *service.SpaceService
-	repos    *service.RepositoryService
-	audit    *service.AuditService
-	sync     *syncclient.Client
-	auditOn  bool
-	base     *Handler
+	admin     *service.AdminService
+	groups    *service.GroupService
+	spaces    *service.SpaceService
+	repos     *service.RepositoryService
+	audit     *service.AuditService
+	sync      *syncclient.Client
+	ragWorker *rag.Worker
+	auditOn   bool
+	base      *Handler
 }
 
 func NewAdminHandler(
@@ -29,11 +31,12 @@ func NewAdminHandler(
 	repos *service.RepositoryService,
 	audit *service.AuditService,
 	sync *syncclient.Client,
+	ragWorker *rag.Worker,
 	auditOn bool,
 ) *AdminHandler {
 	return &AdminHandler{
 		base: base, admin: admin, groups: groups, spaces: spaces, repos: repos,
-		audit: audit, sync: sync, auditOn: auditOn,
+		audit: audit, sync: sync, ragWorker: ragWorker, auditOn: auditOn,
 	}
 }
 
@@ -92,6 +95,8 @@ func (h *AdminHandler) Register(r *gin.Engine) {
 		g.DELETE("/spaces/:id/repositories/:repoId", h.UnbindRepository)
 
 		g.GET("/audit-logs", h.base.RequireRoles("super_admin"), h.ListAuditLogs)
+		g.GET("/rag/status", h.GetRAGStatus)
+		g.POST("/rag/reindex", h.base.RequireRoles("super_admin"), h.TriggerRAGReindex)
 		g.GET("/analytics/overview", h.base.AnalyticsOverview)
 		g.GET("/spaces/:id/page-acl", h.base.ListPageACLRules)
 		g.POST("/spaces/:id/page-acl", h.base.CreatePageACLRule)
@@ -122,6 +127,7 @@ func (h *AdminHandler) UpdateSystemSettings(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+	h.base.logAudit(c, "settings.update", "system", "platform")
 	c.JSON(http.StatusOK, settings)
 }
 
@@ -151,6 +157,7 @@ func (h *AdminHandler) UpdateUITheme(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+	h.base.logAudit(c, "settings.ui_theme", "system", body.UITheme)
 	c.JSON(http.StatusOK, gin.H{"ui_theme": theme})
 }
 
@@ -189,6 +196,7 @@ func (h *AdminHandler) UpdateUILanguage(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+	h.base.logAudit(c, "settings.ui_language", "system", body.UILanguage)
 	c.JSON(http.StatusOK, gin.H{"ui_language": lang})
 }
 
@@ -212,6 +220,7 @@ func (h *AdminHandler) CreateRepository(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+	h.base.logAudit(c, "repository.create", "repository", repo.ID)
 	c.JSON(http.StatusCreated, repo)
 }
 
@@ -239,6 +248,7 @@ func (h *AdminHandler) UpdateRepository(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "repository not found"})
 		return
 	}
+	h.base.logAudit(c, "repository.update", "repository", repo.ID)
 	c.JSON(http.StatusOK, repo)
 }
 
@@ -247,6 +257,7 @@ func (h *AdminHandler) DeleteRepository(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "repository not found"})
 		return
 	}
+	h.base.logAudit(c, "repository.delete", "repository", c.Param("id"))
 	c.JSON(http.StatusOK, gin.H{"status": "deleted"})
 }
 
@@ -307,6 +318,7 @@ func (h *AdminHandler) CreateOIDCProvider(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+	h.base.logAudit(c, "oidc.create", "oidc_provider", p.ID)
 	c.JSON(http.StatusCreated, p)
 }
 
@@ -321,6 +333,7 @@ func (h *AdminHandler) UpdateOIDCProvider(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "provider not found"})
 		return
 	}
+	h.base.logAudit(c, "oidc.update", "oidc_provider", p.ID)
 	c.JSON(http.StatusOK, p)
 }
 
@@ -329,6 +342,7 @@ func (h *AdminHandler) DeleteOIDCProvider(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "provider not found"})
 		return
 	}
+	h.base.logAudit(c, "oidc.delete", "oidc_provider", c.Param("id"))
 	c.JSON(http.StatusOK, gin.H{"status": "deleted"})
 }
 
@@ -378,6 +392,7 @@ func (h *AdminHandler) CreateUser(c *gin.Context) {
 		}
 		return
 	}
+	h.base.logAudit(c, "user.create", "user", user.ID)
 	c.JSON(http.StatusCreated, gin.H{
 		"id":           user.ID,
 		"email":        user.Email,
@@ -410,6 +425,7 @@ func (h *AdminHandler) UpdateUser(c *gin.Context) {
 		}
 		return
 	}
+	h.base.logAudit(c, "user.update", "user", user.ID)
 	c.JSON(http.StatusOK, gin.H{
 		"id":           user.ID,
 		"email":        user.Email,
@@ -434,6 +450,7 @@ func (h *AdminHandler) DeleteUser(c *gin.Context) {
 		}
 		return
 	}
+	h.base.logAudit(c, "user.delete", "user", c.Param("id"))
 	c.JSON(http.StatusOK, gin.H{"status": "deleted"})
 }
 

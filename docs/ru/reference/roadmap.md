@@ -185,8 +185,23 @@ EMBEDDING_MODEL: nomic-embed-text          # ollama pull nomic-embed-text
 | `014_enterprise_kb` | Фаза 3 |
 | `015_multilingual_search` | Search & RAG |
 | `016_rag_enhancements` | Search & RAG |
+| `017_p1_production_features` | P1 — pgvector, sync diff, scale |
 
-> `004` пропущена в нумерации.
+---
+
+## P1 — Production scale (017)
+
+| Компонент | Описание |
+|-----------|----------|
+| **RAG worker** | Фоновый reindex + embeddings; `GET /api/admin/rag/status` |
+| **pgvector** | Колонка `embedding_vector` + HNSW (образ `pgvector/pgvector:pg16`) |
+| **OpenSearch** | HTTP index/search при `SEARCH_BACKEND=opensearch` |
+| **Attachments S3** | `ATTACHMENTS_STORAGE=s3` + переменные `S3_*` |
+| **Webhook уведомлений** | `NOTIFY_WEBHOOK_URL` при in-app событиях |
+| **Git conflict diff** | `GET /api/documents/:id/sync-diff` |
+| **Audit** | Admin settings, OIDC, users, repositories, RAG feedback |
+
+См. [Git webhooks](../operator/git-webhooks.md).
 
 ---
 

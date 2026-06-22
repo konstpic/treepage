@@ -185,8 +185,39 @@ See [Docker Compose](../installation/docker-compose.md).
 | `014_enterprise_kb` | Phase 3 |
 | `015_multilingual_search` | Search & RAG |
 | `016_rag_enhancements` | Search & RAG |
+| `017_p1_production_features` | P1 — pgvector, sync diff, scale |
 
-> `004` is skipped in numbering.
+---
+
+## P1 — Production scale (017)
+
+| Component | Description |
+|-----------|-------------|
+| **RAG worker** | Background reindex + embeddings; `GET /api/admin/rag/status` |
+| **pgvector** | `embedding_vector` column + HNSW index (Postgres image `pgvector/pgvector:pg16`) |
+| **OpenSearch** | Real HTTP index/search when `SEARCH_BACKEND=opensearch` |
+| **Attachments S3** | `ATTACHMENTS_STORAGE=s3` + `S3_*` env vars |
+| **Notification webhook** | `NOTIFY_WEBHOOK_URL` on in-app events |
+| **Git conflict diff** | `GET /api/documents/:id/sync-diff` (local vs Git snapshot) |
+| **Audit** | Admin settings, OIDC, users, repositories, RAG feedback |
+
+Env examples:
+
+```bash
+ATTACHMENTS_STORAGE=s3
+S3_ENDPOINT=minio:9000
+S3_BUCKET=treepage-attachments
+S3_ACCESS_KEY=...
+S3_SECRET_KEY=...
+
+NOTIFY_WEBHOOK_URL=https://hooks.example.com/treepage
+NOTIFY_WEBHOOK_SECRET=optional-shared-secret
+
+SEARCH_BACKEND=opensearch
+OPENSEARCH_URL=http://opensearch:9200
+```
+
+See [Git webhooks](../operator/git-webhooks.md).
 
 ---
 

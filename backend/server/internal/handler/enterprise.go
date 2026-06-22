@@ -253,6 +253,7 @@ func (h *Handler) RAGFeedback(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+	h.logAudit(c, "rag.feedback", "rag", c.GetString("userID"))
 	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
 

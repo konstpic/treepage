@@ -234,6 +234,7 @@ export const en = {
     noVersions: "No saved versions yet.",
     diffTitle: "Changes v{from} → v{to}",
     pendingChanges: "This page has unpublished local edits. Git sync will skip it until you publish via PR or discard changes.",
+    viewSyncDiff: "View diff vs Git",
     delete: "Delete page",
     deleteConfirm: "Delete this page permanently?",
     revert: "Restore",

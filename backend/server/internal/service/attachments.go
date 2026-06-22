@@ -6,10 +6,10 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/konstpic/treepage/backend/pkg/blob"
 	"github.com/konstpic/treepage/backend/pkg/models"
 	"gorm.io/gorm"
 )
@@ -17,19 +17,16 @@ import (
 const maxAttachmentBytes = 10 << 20 // 10 MiB
 
 type AttachmentService struct {
-	db  *gorm.DB
-	dir string
+	db    *gorm.DB
+	store blob.Store
 }
 
-func NewAttachmentService(db *gorm.DB, dir string) *AttachmentService {
-	if dir == "" {
-		dir = "/data/attachments"
-	}
-	return &AttachmentService{db: db, dir: dir}
+func NewAttachmentService(db *gorm.DB, store blob.Store) *AttachmentService {
+	return &AttachmentService{db: db, store: store}
 }
 
 func (s *AttachmentService) EnsureDir() error {
-	return os.MkdirAll(s.dir, 0o750)
+	return s.store.EnsureReady(context.Background())
 }
 
 func (s *AttachmentService) ListByDocument(ctx context.Context, documentID string) ([]models.DocumentAttachment, error) {
@@ -57,19 +54,12 @@ func (s *AttachmentService) Upload(ctx context.Context, documentID, userID, file
 		return nil, err
 	}
 	key = key + "_" + filename
-	dest := filepath.Join(s.dir, key)
-	f, err := os.OpenFile(dest, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o640)
+	written, err := s.store.Write(ctx, key, io.LimitReader(r, maxAttachmentBytes+1), size)
 	if err != nil {
-		return nil, err
-	}
-	written, err := io.Copy(f, io.LimitReader(r, maxAttachmentBytes+1))
-	f.Close()
-	if err != nil {
-		os.Remove(dest)
 		return nil, err
 	}
 	if written > maxAttachmentBytes {
-		os.Remove(dest)
+		_ = s.store.Remove(ctx, key)
 		return nil, fmt.Errorf("attachment too large")
 	}
 	att := models.DocumentAttachment{
@@ -81,7 +71,7 @@ func (s *AttachmentService) Upload(ctx context.Context, documentID, userID, file
 		UploadedBy: &userID,
 	}
 	if err := s.db.WithContext(ctx).Create(&att).Error; err != nil {
-		os.Remove(dest)
+		_ = s.store.Remove(ctx, key)
 		return nil, err
 	}
 	return &att, nil
@@ -95,13 +85,12 @@ func (s *AttachmentService) GetByID(ctx context.Context, attachmentID string) (*
 	return &att, nil
 }
 
-func (s *AttachmentService) Open(ctx context.Context, attachmentID string) (*models.DocumentAttachment, *os.File, error) {
+func (s *AttachmentService) Open(ctx context.Context, attachmentID string) (*models.DocumentAttachment, io.ReadCloser, error) {
 	att, err := s.GetByID(ctx, attachmentID)
 	if err != nil {
 		return nil, nil, err
 	}
-	path := filepath.Join(s.dir, att.StorageKey)
-	f, err := os.Open(path)
+	f, err := s.store.Open(ctx, att.StorageKey)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -116,7 +105,7 @@ func (s *AttachmentService) Delete(ctx context.Context, attachmentID string) err
 	if err := s.db.WithContext(ctx).Delete(att).Error; err != nil {
 		return err
 	}
-	_ = os.Remove(filepath.Join(s.dir, att.StorageKey))
+	_ = s.store.Remove(ctx, att.StorageKey)
 	return nil
 }
 

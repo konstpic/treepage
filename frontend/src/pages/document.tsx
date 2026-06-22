@@ -4,6 +4,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Edit3, Languages, Loader2, Star, Trash2 } from "lucide-react";
 import { api, ApiError, optionalAuthApi } from "@/lib/api";
 import { MarkdownRenderer } from "@/components/markdown-renderer";
+import { DocumentSyncDiff } from "@/components/document-sync-diff";
 import { DocumentEditor } from "@/components/document-editor";
 import { DocumentAttachments } from "@/components/document-attachments";
 import { DocumentComments } from "@/components/document-comments";
@@ -215,9 +216,7 @@ export function DocumentPage() {
       />
       <article className="glass p-6 sm:p-8">
         {doc.has_pending_changes && doc.repository_id && (
-          <div className="mb-4 rounded-xl border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-fg">
-            {t("document.pendingChanges")}
-          </div>
+          <DocumentSyncDiff documentId={doc.id} />
         )}
         {doc.workflow_state && doc.workflow_state !== "published" && (
           <div className="mb-4 rounded-xl border border-default bg-surface-muted px-4 py-3 text-sm text-fg">

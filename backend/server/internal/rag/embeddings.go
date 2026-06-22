@@ -85,6 +85,7 @@ func (s *Service) backfillEmbeddings(ctx context.Context, limit int) (int, error
 			Update("embedding", emb).Error; err != nil {
 			return n, err
 		}
+		_ = embeddings.SetChunkVector(ctx, s.db, c.ID, emb)
 		n++
 	}
 	return n, nil
@@ -105,6 +106,10 @@ func (s *Service) BackfillEmbeddings(ctx context.Context) (int, error) {
 	return total, nil
 }
 
+func (s *Service) backfillPgVectors(ctx context.Context, limit int) (int, error) {
+	return embeddings.BackfillVectorsFromJSONB(ctx, s.db, limit)
+}
+
 func (s *Service) vectorSearchChunks(ctx context.Context, question string, allowed []string, limit int) ([]chunkRow, error) {
 	if s.embed == nil || !s.embed.Available() {
 		return nil, nil
@@ -114,6 +119,44 @@ func (s *Service) vectorSearchChunks(ctx context.Context, question string, allow
 		return nil, err
 	}
 
+	if embeddings.PgVectorAvailable(s.db) {
+		return s.vectorSearchPgVector(ctx, qEmb, allowed, limit)
+	}
+	return s.vectorSearchJSONB(ctx, qEmb, allowed, limit)
+}
+
+func (s *Service) vectorSearchPgVector(ctx context.Context, qEmb embeddings.Vector, allowed []string, limit int) ([]chunkRow, error) {
+	lit := embeddings.VectorLiteral(qEmb)
+	spaceFilter := ""
+	args := []any{lit}
+	if allowed != nil {
+		spaceFilter = " AND d.space_id IN ?"
+		args = append(args, allowed)
+	}
+	args = append(args, lit, limit*3)
+	query := `
+		SELECT dc.id AS chunk_id, dc.document_id, dc.content, d.title, d.slug, sp.slug AS space_slug,
+			d.space_id, d.path,
+			(1 - (dc.embedding_vector <=> ?::vector)) AS rank
+		FROM document_chunks dc
+		JOIN documents d ON d.id = dc.document_id
+		JOIN spaces sp ON sp.id = d.space_id
+		WHERE d.is_published = true
+		  AND dc.embedding_vector IS NOT NULL` + spaceFilter + `
+		ORDER BY dc.embedding_vector <=> ?::vector
+		LIMIT ?`
+
+	var rows []chunkRow
+	if err := s.db.WithContext(ctx).Raw(query, args...).Scan(&rows).Error; err != nil {
+		return nil, err
+	}
+	for i := range rows {
+		rows[i].VectorSim = rows[i].Rank
+	}
+	return rows, nil
+}
+
+func (s *Service) vectorSearchJSONB(ctx context.Context, qEmb embeddings.Vector, allowed []string, limit int) ([]chunkRow, error) {
 	q := s.db.WithContext(ctx).Table("document_chunks dc").
 		Select(`dc.id AS chunk_id, dc.document_id, dc.content, d.title, d.slug, sp.slug AS space_slug,
 			d.space_id, d.path, dc.embedding`).

@@ -31,6 +31,7 @@ type Handler struct {
 	analytics     *service.AnalyticsService
 	rag           *rag.Service
 	search        search.Searcher
+	docIndexer    search.DocumentIndexer
 	books         *book.Service
 	translate     *translate.Service
 	sync          *syncclient.Client
@@ -62,7 +63,7 @@ func New(
 		spaces: spaces, docs: docs, repos: repos,
 		audit: audit, prefs: prefs, notifications: notifications, attachments: attachments,
 		pageACL: pageACL, comments: comments, analytics: analytics, rag: ragSvc,
-		search: searcher, sync: syncClient,
+		search: searcher, docIndexer: pickDocumentIndexer(searcher), sync: syncClient,
 		books: book.NewService(docs, db, llmClient),
 		translate: translate.NewService(db, llmClient, admin),
 		jwt: jwt, auditOn: auditOn,
@@ -119,6 +120,7 @@ func (h *Handler) Register(r *gin.Engine) {
 		apiAuth.POST("/documents/:id/reject-review", h.RejectDocumentReview)
 		apiAuth.POST("/rag/ask", h.RAGAsk)
 		apiAuth.POST("/rag/feedback", h.RAGFeedback)
+		apiAuth.GET("/documents/:id/sync-diff", h.GetDocumentSyncDiff)
 		apiAuth.GET("/documents/:id/versions", h.ListDocumentVersions)
 		apiAuth.GET("/documents/:id/versions/:version/diff", h.DiffDocumentVersions)
 		apiAuth.GET("/documents/:id/versions/:version", h.GetDocumentVersion)
@@ -323,6 +325,7 @@ func (h *Handler) CreateDocument(c *gin.Context) {
 	}
 	h.logAudit(c, "document.create", "document", doc.ID)
 	go func(d models.Document) { _ = h.rag.ReindexDocument(context.Background(), &d) }(*doc)
+	h.indexDocumentAsync(doc)
 	c.JSON(http.StatusCreated, doc)
 }
 
@@ -364,6 +367,7 @@ func (h *Handler) UpdateDocument(c *gin.Context) {
 	}
 	h.logAudit(c, "document.update", "document", doc.ID)
 	go func(d models.Document) { _ = h.rag.ReindexDocument(context.Background(), &d) }(*doc)
+	h.indexDocumentAsync(doc)
 	c.JSON(http.StatusOK, doc)
 }
 

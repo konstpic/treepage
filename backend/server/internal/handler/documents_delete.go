@@ -31,6 +31,7 @@ func (h *Handler) DeleteDocument(c *gin.Context) {
 		return
 	}
 	h.logAudit(c, "document.delete", "document", doc.ID)
+	h.deleteDocumentFromIndex(doc.ID)
 	c.JSON(http.StatusOK, gin.H{"status": "deleted"})
 }
 

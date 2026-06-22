@@ -234,6 +234,7 @@ export const ru = {
     noVersions: "Сохранённых версий пока нет.",
     diffTitle: "Изменения v{from} → v{to}",
     pendingChanges: "Есть неопубликованные локальные правки. Git sync пропустит страницу, пока вы не отправите PR или не откатите изменения.",
+    viewSyncDiff: "Diff с Git",
     delete: "Удалить страницу",
     deleteConfirm: "Удалить эту страницу безвозвратно?",
     revert: "Восстановить",

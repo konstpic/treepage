@@ -55,9 +55,10 @@ func (d *DocumentService) MarkPublished(ctx context.Context, docID, commitSHA, c
 	hash := contenthash.SHA256(content)
 	now := time.Now()
 	return d.db.WithContext(ctx).Model(&models.Document{}).Where("id = ?", docID).Updates(map[string]interface{}{
-		"commit_sha":          commitSHA,
-		"synced_content_hash": hash,
-		"has_pending_changes": false,
-		"last_synced_at":      now,
+		"commit_sha":            commitSHA,
+		"synced_content_hash":   hash,
+		"sync_snapshot_content": content,
+		"has_pending_changes":   false,
+		"last_synced_at":        now,
 	}).Error
 }

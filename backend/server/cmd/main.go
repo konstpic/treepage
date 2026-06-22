@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/konstpic/treepage/backend/pkg/blob"
 	"github.com/konstpic/treepage/backend/pkg/config"
 	"github.com/konstpic/treepage/backend/pkg/database"
 	"github.com/konstpic/treepage/backend/pkg/embeddings"
@@ -18,7 +19,7 @@ import (
 	"github.com/konstpic/treepage/backend/pkg/logging"
 	"github.com/konstpic/treepage/backend/pkg/middleware"
 	"github.com/konstpic/treepage/backend/pkg/migrate"
-	"github.com/konstpic/treepage/backend/pkg/models"
+	"github.com/konstpic/treepage/backend/pkg/notify"
 	"github.com/konstpic/treepage/backend/server/internal/handler"
 	"github.com/konstpic/treepage/backend/server/internal/llm"
 	"github.com/konstpic/treepage/backend/server/internal/rag"
@@ -86,12 +87,16 @@ func main() {
 	admin := service.NewAdminService(db)
 	groups := service.NewGroupService(db)
 	prefs := service.NewUserPrefsService(db)
-	notifications := service.NewNotificationService(db)
+	notifications := service.NewNotificationService(db, notify.NewWebhookFromEnv())
 	attachmentsDir := os.Getenv("ATTACHMENTS_DIR")
 	if attachmentsDir == "" {
 		attachmentsDir = "/data/attachments"
 	}
-	attachments := service.NewAttachmentService(db, attachmentsDir)
+	blobStore, err := blob.NewFromEnv(attachmentsDir)
+	if err != nil {
+		log.Fatal("attachment storage init failed", zap.Error(err))
+	}
+	attachments := service.NewAttachmentService(db, blobStore)
 	_ = attachments.EnsureDir()
 	pageACL := service.NewPageACLService(db)
 	comments := service.NewCommentService(db)
@@ -112,32 +117,25 @@ func main() {
 	}
 	syncClient := syncclient.New(syncURL)
 	ragSvc := rag.New(db, llmClient, embedClient, spaces, pageACL)
+	ragWorker := rag.NewWorker(ragSvc, db, log)
+	ragWorker.Start(context.Background())
 
-	go func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
-		defer cancel()
-		var chunkCount int64
-		if err := db.WithContext(ctx).Model(&models.DocumentChunk{}).Count(&chunkCount).Error; err != nil {
-			log.Warn("rag chunk count check failed", zap.Error(err))
-			return
-		}
-		if chunkCount == 0 {
-			n, err := ragSvc.ReindexAllPublished(ctx)
-			if err != nil {
-				log.Warn("rag backfill failed", zap.Int("indexed", n), zap.Error(err))
-			} else {
-				log.Info("rag backfill completed", zap.Int("documents", n))
+	if osSearcher, ok := searcher.(*search.OpenSearchSearcher); ok {
+		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+			defer cancel()
+			if err := osSearcher.EnsureIndex(ctx); err != nil {
+				log.Warn("opensearch index setup failed", zap.Error(err))
+				return
 			}
-		}
-		if embedClient.Available() {
-			n, err := ragSvc.BackfillEmbeddings(ctx)
+			n, err := osSearcher.BackfillFromDB(ctx)
 			if err != nil {
-				log.Warn("rag embedding backfill failed", zap.Int("chunks", n), zap.Error(err))
+				log.Warn("opensearch backfill failed", zap.Int("documents", n), zap.Error(err))
 			} else if n > 0 {
-				log.Info("rag embedding backfill completed", zap.Int("chunks", n))
+				log.Info("opensearch backfill completed", zap.Int("documents", n))
 			}
-		}
-	}()
+		}()
+	}
 
 	welcomeCfg := service.LoadWelcomeBootstrapConfig()
 	if welcomeRepo, created, err := service.BootstrapWelcomeSpace(context.Background(), db, welcomeCfg, log); err != nil {
@@ -359,7 +357,7 @@ func main() {
 
 	hdl := handler.New(spaces, docs, repos, audit, prefs, notifications, attachments, pageACL, comments, analyticsSvc, ragSvc, searcher, llmClient, admin, db, jwtMgr, syncClient, cfg.Security.EnableAuditLog)
 	hdl.Register(r)
-	adminHdl := handler.NewAdminHandler(hdl, admin, groups, spaces, repos, audit, syncClient, cfg.Security.EnableAuditLog)
+	adminHdl := handler.NewAdminHandler(hdl, admin, groups, spaces, repos, audit, syncClient, ragWorker, cfg.Security.EnableAuditLog)
 	adminHdl.Register(r)
 
 	srv := &http.Server{Addr: cfg.Server.Addr(), Handler: r}

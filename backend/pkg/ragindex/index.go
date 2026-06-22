@@ -41,6 +41,9 @@ func IndexDocumentWithEmbedder(ctx context.Context, db *gorm.DB, doc *models.Doc
 		if err := db.WithContext(ctx).Create(&row).Error; err != nil {
 			return err
 		}
+		if len(row.Embedding) > 0 {
+			_ = embeddings.SetChunkVector(ctx, db, row.ID, row.Embedding)
+		}
 	}
 	return nil
 }

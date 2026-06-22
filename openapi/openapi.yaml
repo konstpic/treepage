@@ -634,3 +634,90 @@ paths:
       responses:
         "200":
           description: Metrics
+
+  /api/rag/ask:
+    post:
+      tags: [RAG]
+      summary: Ask documentation (RAG)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [question]
+              properties:
+                question:
+                  type: string
+                limit:
+                  type: integer
+                  minimum: 1
+                  maximum: 10
+      responses:
+        "200":
+          description: Answer with sources and citations
+
+  /api/rag/feedback:
+    post:
+      tags: [RAG]
+      summary: Submit RAG answer feedback
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [question, helpful]
+              properties:
+                question:
+                  type: string
+                answer:
+                  type: string
+                helpful:
+                  type: boolean
+                confidence:
+                  type: number
+      responses:
+        "200":
+          description: Feedback recorded
+
+  /api/documents/{id}/sync-diff:
+    get:
+      tags: [Documents]
+      summary: Diff local edits vs last Git sync snapshot
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Line diff between Git snapshot and local content
+
+  /api/admin/rag/status:
+    get:
+      tags: [Admin]
+      summary: RAG indexing worker status
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Worker phase and progress
+
+  /api/admin/rag/reindex:
+    post:
+      tags: [Admin]
+      summary: Trigger full RAG reindex (super_admin)
+      security:
+        - bearerAuth: []
+      responses:
+        "202":
+          description: Reindex started

@@ -125,7 +125,8 @@ func (s *Syncer) upsertDocument(ctx context.Context, repo models.Repository, rel
 			SpaceID: repo.SpaceID, RepositoryID: &repo.ID,
 			Slug: slug, Title: title, Path: relPath,
 			Content: content, Tags: tags, IsPublished: true,
-			SyncedContentHash: gitHash, HasPendingChanges: false, LastSyncedAt: &now,
+			SyncedContentHash: gitHash, SyncSnapshotContent: content,
+			HasPendingChanges: false, LastSyncedAt: &now,
 			CommitSHA: commitSHA,
 		}
 		if err := s.db.WithContext(ctx).Create(&doc).Error; err != nil {
@@ -150,6 +151,7 @@ func (s *Syncer) upsertDocument(ctx context.Context, repo models.Repository, rel
 	doc.RepositoryID = &repo.ID
 	doc.Path = relPath
 	doc.SyncedContentHash = gitHash
+	doc.SyncSnapshotContent = content
 	doc.HasPendingChanges = false
 	doc.LastSyncedAt = &now
 	if commitSHA != "" {

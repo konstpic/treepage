@@ -154,6 +154,7 @@ type Document struct {
 	AuthorName  string         `gorm:"size:256" json:"author_name,omitempty"`
 	CommitSHA         string         `gorm:"size:64" json:"commit_sha,omitempty"`
 	SyncedContentHash string         `gorm:"size:64" json:"synced_content_hash,omitempty"`
+	SyncSnapshotContent string       `gorm:"type:text" json:"-"`
 	HasPendingChanges bool           `json:"has_pending_changes"`
 	LastSyncedAt      *time.Time     `json:"last_synced_at,omitempty"`
 	IsPublished       bool           `json:"is_published"`

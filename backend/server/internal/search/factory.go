@@ -14,7 +14,7 @@ func NewFromEnv(db *gorm.DB, log *zap.Logger) Searcher {
 		url := os.Getenv("OPENSEARCH_URL")
 		if url != "" {
 			if log != nil {
-				log.Info("search backend: opensearch (postgres fallback until index sync)", zap.String("url", url))
+				log.Info("search backend: opensearch", zap.String("url", url))
 			}
 			return NewOpenSearchSearcher(url, db, log)
 		}
