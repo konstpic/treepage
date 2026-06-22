@@ -49,6 +49,7 @@ services:
       AUTHENTIK_ERROR_REPORTING__ENABLED: "false"
       AUTHENTIK_DISABLE_UPDATE_CHECK: "true"
       AUTHENTIK_DISABLE_STARTUP_ANALYTICS: "true"
+      AUTHENTIK_HOST: ${AUTHENTIK_PUBLIC_URL:-http://localhost:9000}
     volumes:
       - authentik_media:/media
       - authentik_templates:/templates
@@ -74,6 +75,7 @@ services:
       AUTHENTIK_SECRET_KEY: ${AUTHENTIK_SECRET_KEY:-dev-authentik-secret-key-change-me}
       AUTHENTIK_ERROR_REPORTING__ENABLED: "false"
       AUTHENTIK_DISABLE_UPDATE_CHECK: "true"
+      AUTHENTIK_HOST: ${AUTHENTIK_PUBLIC_URL:-http://localhost:9000}
     volumes:
       - authentik_media:/media
       - authentik_templates:/templates
