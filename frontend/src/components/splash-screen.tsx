@@ -1,9 +1,13 @@
 import { motion } from "framer-motion";
 import { TreePageLogo, TREE_LOGO_DRAW_MS } from "@/components/treepage-logo";
 import { useBrandingStore } from "@/lib/store";
+import { useSplashStore } from "@/lib/splash-store";
+import { useI18n } from "@/lib/i18n";
 
 export function SplashScreen() {
   const projectName = useBrandingStore((s) => s.projectName);
+  const welcomeName = useSplashStore((s) => s.welcomeName);
+  const { t } = useI18n();
   const textDelay = TREE_LOGO_DRAW_MS / 1000 - 0.55;
 
   return (
@@ -29,6 +33,11 @@ export function SplashScreen() {
           transition={{ delay: textDelay, duration: 0.65, ease: [0.25, 0.46, 0.45, 0.94] }}
         >
           <h1 className="splash-screen__title">{projectName}</h1>
+          {welcomeName && (
+            <p className="splash-screen__welcome">
+              {t("splash.welcome")}, {welcomeName}
+            </p>
+          )}
           <motion.div
             className="h-0.5 rounded-full bg-primary/60"
             initial={{ width: 0, opacity: 0 }}

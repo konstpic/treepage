@@ -70,7 +70,7 @@ export function DocumentPage() {
     enabled: !!slug,
   });
 
-  const { data: doc, isLoading } = useQuery({
+  const { data: doc, isLoading, isError } = useQuery({
     queryKey: ["document", slug, docSlug, editing ? "raw" : localeId],
     queryFn: () =>
       optionalAuthApi<Document>(
@@ -202,7 +202,13 @@ export function DocumentPage() {
     );
   }
 
-  if (!doc) return null;
+  if (isError || !doc) {
+    return (
+      <div className="glass px-8 py-16 text-center">
+        <p className="text-sm text-muted">{t("document.notFound")}</p>
+      </div>
+    );
+  }
 
   const canEdit = space?.can_edit === true;
 

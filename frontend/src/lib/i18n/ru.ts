@@ -107,6 +107,9 @@ export const ru = {
     continueOidc: "Продолжить с OIDC",
     backHome: "На главную",
   },
+  splash: {
+    welcome: "Добро пожаловать",
+  },
   spaces: {
     title: "Пространства",
     subtitleAuth: "Коллекции документации",
@@ -226,6 +229,7 @@ export const ru = {
     pathPlaceholder: "Путь (например guides/intro.md)",
     contentLabel: "Содержимое Markdown",
     createPage: "Новая страница",
+    notFound: "Документ не найден или нет доступа.",
     gitHint:
       "Страница связана с Git ({path}). Изменения сохраняются в TreePage — создайте PR в репозитории, чтобы опубликовать их upstream.",
     gitHintPublish:

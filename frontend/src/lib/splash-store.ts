@@ -13,7 +13,9 @@ interface SplashState {
   scatterMode: ScatterMode;
   pendingAction: (() => void) | null;
   splashKey: number;
-  requestAuthFormSplash: (action: () => void) => void;
+  welcomeName: string | null;
+  requestAuthFormSplash: (action: () => void, welcomeName?: string) => void;
+  requestWelcomeSplash: (action: () => void, welcomeName: string) => void;
   requestInitialSplash: () => void;
   finishSplash: () => void;
 }
@@ -25,13 +27,15 @@ export const useSplashStore = create<SplashState>((set, get) => ({
   scatterMode: null,
   pendingAction: null,
   splashKey: 0,
+  welcomeName: null,
 
-  requestAuthFormSplash: (action) => {
+  requestAuthFormSplash: (action, welcomeName) => {
     if (scatterTimer) clearTimeout(scatterTimer);
     set((s) => ({
       phase: "scatter",
       scatterMode: "auth-form",
       pendingAction: action,
+      welcomeName: welcomeName ?? null,
       splashKey: s.splashKey + 1,
     }));
     scatterTimer = setTimeout(() => {
@@ -41,18 +45,30 @@ export const useSplashStore = create<SplashState>((set, get) => ({
     }, SCATTER_ANIM_MS + SCATTER_PAUSE_MS);
   },
 
+  requestWelcomeSplash: (action, welcomeName) => {
+    if (scatterTimer) clearTimeout(scatterTimer);
+    set((s) => ({
+      phase: "splash",
+      scatterMode: null,
+      pendingAction: action,
+      welcomeName,
+      splashKey: s.splashKey + 1,
+    }));
+  },
+
   requestInitialSplash: () => {
     set((s) => ({
       phase: "splash",
       scatterMode: null,
       pendingAction: null,
+      welcomeName: null,
       splashKey: s.splashKey + 1,
     }));
   },
 
   finishSplash: () => {
     const action = get().pendingAction;
-    set({ phase: "idle", scatterMode: null, pendingAction: null });
+    set({ phase: "idle", scatterMode: null, pendingAction: null, welcomeName: null });
     action?.();
   },
 }));
@@ -64,6 +80,7 @@ export function shouldShowInitialSplash(pathname: string): boolean {
   if (sessionStorage.getItem(INITIAL_SPLASH_KEY) === "1") return false;
   if (pathname.startsWith("/admin")) return false;
   if (pathname.startsWith("/auth/callback")) return false;
+  if (pathname.startsWith("/spaces")) return false;
   return true;
 }
 

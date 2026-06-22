@@ -6,11 +6,25 @@ export function useAuthFormSplash() {
   const requestAuthFormSplash = useSplashStore((s) => s.requestAuthFormSplash);
 
   const startAuthFormSplash = useCallback(
-    (action: () => void) => {
-      requestAuthFormSplash(action);
+    (action: () => void, welcomeName?: string) => {
+      requestAuthFormSplash(action, welcomeName);
     },
     [requestAuthFormSplash],
   );
 
   return { startAuthFormSplash };
+}
+
+/** Splash with welcome text (OIDC callback — no form scatter). */
+export function useWelcomeSplash() {
+  const requestWelcomeSplash = useSplashStore((s) => s.requestWelcomeSplash);
+
+  const startWelcomeSplash = useCallback(
+    (action: () => void, welcomeName: string) => {
+      requestWelcomeSplash(action, welcomeName);
+    },
+    [requestWelcomeSplash],
+  );
+
+  return { startWelcomeSplash };
 }

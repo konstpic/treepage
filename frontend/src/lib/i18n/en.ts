@@ -107,6 +107,9 @@ export const en = {
     continueOidc: "Continue with OIDC",
     backHome: "Back to home",
   },
+  splash: {
+    welcome: "Welcome",
+  },
   spaces: {
     title: "Spaces",
     subtitleAuth: "Documentation collections",
@@ -226,6 +229,7 @@ export const en = {
     pathPlaceholder: "Path (e.g. guides/intro.md)",
     contentLabel: "Markdown content",
     createPage: "New page",
+    notFound: "Document not found or you don't have access.",
     gitHint:
       "This page is linked to Git ({path}). Changes are saved in TreePage — open a PR in your repository to publish them upstream.",
     gitHintPublish:

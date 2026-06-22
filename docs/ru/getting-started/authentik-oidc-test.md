@@ -35,6 +35,9 @@ chmod +x scripts/deploy-dev-authentik.sh
 |------|----------|
 | Email | `admin@authentik.local` |
 | Пароль | `authentik` |
+| Вход | Email **или** username `akadmin` |
+
+Пароль bootstrap задаётся только при **первом** запуске БД. После redeploy при ошибке входа: `./scripts/authentik-reset-bootstrap.sh`.
 
 Blueprint `deploy/authentik/blueprints/treepage-test-users.yaml` создаёт **10 пользователей**. Пароль у всех: **`Test123!`**
 

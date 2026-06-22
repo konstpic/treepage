@@ -372,6 +372,11 @@ body {
   box-decoration-break: clone;
 }
 
+.splash-screen__welcome {
+  @apply text-lg font-medium text-muted sm:text-xl;
+  margin-top: 0.25rem;
+}
+
 @keyframes splash-pulse {
   0%,
   100% {

@@ -36,6 +36,9 @@ Use for first setup and when Authentik/OIDC is down. Change the password after l
 |-------|--------|
 | Email | `admin@authentik.local` |
 | Password | `authentik` |
+| Login | Email **or** username `akadmin` |
+
+Bootstrap password applies only on a **fresh** Authentik database. After redeploy, run `./scripts/authentik-reset-bootstrap.sh` if login fails.
 
 Create end-user accounts in Authentik → **Directory → Users** for OIDC login tests.
 

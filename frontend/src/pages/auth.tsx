@@ -2,10 +2,10 @@ import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Loader2, ShieldCheck, AlertCircle } from "lucide-react";
-import { ApiError, getLoginUrl, loginLocal } from "@/lib/api";
+import { ApiError, authApi, getLoginUrl, loginLocal } from "@/lib/api";
 import { useAuthStore } from "@/lib/store";
 import { useI18n } from "@/lib/i18n";
-import { useAuthFormSplash } from "@/hooks/use-auth-splash";
+import { useAuthFormSplash, useWelcomeSplash } from "@/hooks/use-auth-splash";
 import { AuthScatterPiece } from "@/components/app-shell";
 import { useSplashStore, SCATTER_ANIM_MS } from "@/lib/splash-store";
 
@@ -42,10 +42,11 @@ export function AuthPage() {
       const data = await loginLocal(email, password);
       setAuth(data.access_token, data.refresh_token);
       if (data.user) setUser(data.user);
+      const welcomeName = data.user?.display_name || data.user?.email || email;
       startAuthFormSplash(() => {
         navigate("/spaces", { replace: true });
         setLoading(false);
-      });
+      }, welcomeName);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : t("auth.loginFailed"));
       setLoading(false);
@@ -160,16 +161,40 @@ export function AuthPage() {
 export function AuthCallbackPage() {
   const [params] = useSearchParams();
   const setAuth = useAuthStore((s) => s.setAuth);
+  const setUser = useAuthStore((s) => s.setUser);
   const navigate = useNavigate();
+  const { startWelcomeSplash } = useWelcomeSplash();
+  const [error, setError] = useState("");
 
   useEffect(() => {
     const access = params.get("access_token");
     const refresh = params.get("refresh_token");
-    if (access && refresh) {
-      setAuth(access, refresh);
-      navigate("/spaces", { replace: true });
-    }
-  }, [params, setAuth, navigate]);
+    if (!access || !refresh) return;
+
+    let cancelled = false;
+    setAuth(access, refresh);
+
+    authApi<{ id: string; email: string; display_name: string; avatar_url?: string; roles: string[] }>(
+      "/api/auth/me",
+    )
+      .then((user) => {
+        if (cancelled) return;
+        setUser(user);
+        const welcomeName = user.display_name || user.email;
+        startWelcomeSplash(() => navigate("/spaces", { replace: true }), welcomeName);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setError("Login failed");
+        navigate("/auth", { replace: true });
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [params, setAuth, setUser, navigate, startWelcomeSplash]);
+
+  if (error) return null;
 
   return (
     <div className="flex min-h-[40vh] items-center justify-center">

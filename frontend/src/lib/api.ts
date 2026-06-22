@@ -66,6 +66,19 @@ async function requestJson<T>(baseUrl: string, path: string, init: RequestInit =
         throw new ApiError("Session expired", 401);
       }
     }
+    // Anonymous public routes: drop stale token and retry once without auth.
+    if (token) {
+      localStorage.removeItem("access_token");
+      localStorage.removeItem("refresh_token");
+      const retry = await fetch(`${baseUrl}${path}`, {
+        ...init,
+        headers: {
+          "Content-Type": "application/json",
+          ...(init.headers || {}),
+        },
+      });
+      if (retry.ok) return retry.json();
+    }
     throw new ApiError("Session expired", 401);
   }
 

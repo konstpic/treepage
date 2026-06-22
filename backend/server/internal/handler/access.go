@@ -24,6 +24,9 @@ func (h *Handler) requireSpaceAccess(c *gin.Context, space *models.Space) bool {
 }
 
 func (h *Handler) getEffectiveSpaceRole(c *gin.Context, space *models.Space) (string, error) {
+	if c.GetString("userID") == "" && space.IsPublic {
+		return service.SpaceRoleViewer, nil
+	}
 	return h.spaces.EffectiveRole(
 		c.Request.Context(),
 		space.ID,

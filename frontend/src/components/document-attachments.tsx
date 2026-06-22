@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, Paperclip, Trash2, Upload } from "lucide-react";
 import { useRef } from "react";
 import { api, ApiError } from "@/lib/api";
+import { useAuthStore } from "@/lib/store";
 import { useI18n } from "@/lib/i18n";
 import { formatDate } from "@/lib/utils";
 
@@ -29,10 +30,11 @@ export function DocumentAttachments({ documentId, canEdit }: DocumentAttachments
   const qc = useQueryClient();
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const { isAuthenticated } = useAuthStore();
   const { data, isLoading } = useQuery({
     queryKey: ["attachments", documentId],
     queryFn: () => api<{ items: Attachment[] }>(`/api/documents/${documentId}/attachments`),
-    enabled: !!documentId,
+    enabled: isAuthenticated && !!documentId,
   });
 
   const upload = useMutation({
