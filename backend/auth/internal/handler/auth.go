@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -81,6 +82,7 @@ type Handler struct {
 	oidcProvider *oidc.Provider
 	oauth2Cfg    *oauth2.Config
 	frontendURL  string
+	oidcPublicURL string
 	devLogin     bool
 	logger       *zap.Logger
 }
@@ -92,6 +94,7 @@ func New(
 	oidcProvider *oidc.Provider,
 	oauth2Cfg *oauth2.Config,
 	frontendURL string,
+	oidcPublicURL string,
 	devLogin bool,
 	logger *zap.Logger,
 ) *Handler {
@@ -101,7 +104,8 @@ func New(
 	return &Handler{
 		svc: svc, jwt: jwt, states: states,
 		oidcProvider: oidcProvider, oauth2Cfg: oauth2Cfg,
-		frontendURL: frontendURL, devLogin: devLogin, logger: logger,
+		frontendURL: frontendURL, oidcPublicURL: strings.TrimRight(oidcPublicURL, "/"),
+		devLogin: devLogin, logger: logger,
 	}
 }
 
@@ -133,7 +137,24 @@ func (h *Handler) LoginOIDC(c *gin.Context) {
 		return
 	}
 	url := h.oauth2Cfg.AuthCodeURL(state, oauth2.AccessTypeOffline)
+	if h.oidcPublicURL != "" {
+		url = rewriteOIDCBrowserURL(url, h.oidcPublicURL)
+	}
 	c.Redirect(http.StatusFound, url)
+}
+
+func rewriteOIDCBrowserURL(raw, publicBase string) string {
+	u, err := url.Parse(raw)
+	if err != nil {
+		return raw
+	}
+	pub, err := url.Parse(publicBase)
+	if err != nil {
+		return raw
+	}
+	u.Scheme = pub.Scheme
+	u.Host = pub.Host
+	return u.String()
 }
 
 type localLoginRequest struct {

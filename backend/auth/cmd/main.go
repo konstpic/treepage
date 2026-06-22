@@ -118,7 +118,7 @@ func main() {
 	})
 	h.Register(r)
 
-	hdl := handler.New(authSvc, jwtMgr, handler.NewStateStoreFromEnv(handler.NewMemoryStateStore()), oidcProvider, oauth2Cfg, cfg.Frontend.URL, devmode.LocalLoginEnabled(), log)
+	hdl := handler.New(authSvc, jwtMgr, handler.NewStateStoreFromEnv(handler.NewMemoryStateStore()), oidcProvider, oauth2Cfg, cfg.Frontend.URL, os.Getenv("AUTHENTIK_PUBLIC_URL"), devmode.LocalLoginEnabled(), log)
 	hdl.Register(r)
 
 	srv := &http.Server{Addr: cfg.Server.Addr(), Handler: r}

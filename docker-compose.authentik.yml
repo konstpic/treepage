@@ -49,13 +49,18 @@ services:
       AUTHENTIK_ERROR_REPORTING__ENABLED: "false"
       AUTHENTIK_DISABLE_UPDATE_CHECK: "true"
       AUTHENTIK_DISABLE_STARTUP_ANALYTICS: "true"
-      AUTHENTIK_HOST: ${AUTHENTIK_PUBLIC_URL:-http://localhost:9000}
     volumes:
       - authentik_media:/media
       - authentik_templates:/templates
       - ./deploy/authentik/blueprints:/blueprints/custom:ro
     ports:
       - "${AUTHENTIK_PORT:-9000}:9000"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:9000/-/health/live/ >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 90s
     depends_on:
       authentik-postgres:
         condition: service_healthy
@@ -75,7 +80,6 @@ services:
       AUTHENTIK_SECRET_KEY: ${AUTHENTIK_SECRET_KEY:-dev-authentik-secret-key-change-me}
       AUTHENTIK_ERROR_REPORTING__ENABLED: "false"
       AUTHENTIK_DISABLE_UPDATE_CHECK: "true"
-      AUTHENTIK_HOST: ${AUTHENTIK_PUBLIC_URL:-http://localhost:9000}
     volumes:
       - authentik_media:/media
       - authentik_templates:/templates
@@ -85,12 +89,18 @@ services:
         condition: service_healthy
       authentik-redis:
         condition: service_healthy
+      authentik-server:
+        condition: service_healthy
     restart: unless-stopped
 
   backend-auth:
     environment:
       CONFIG_PATH: ${AUTH_CONFIG_PATH:-/opt/app/conf/config.authentik.yml}
       OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-treepage-authentik-dev-secret}
+      AUTHENTIK_PUBLIC_URL: ${AUTHENTIK_PUBLIC_URL:-http://localhost:9000}
+    depends_on:
+      authentik-server:
+        condition: service_healthy
 
 volumes:
   authentik_postgres:
