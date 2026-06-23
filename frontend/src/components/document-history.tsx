@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { GitBranch, GitCompare, History, Loader2, RotateCcw, X } from "lucide-react";
+import { Eye, GitBranch, GitCompare, History, Loader2, RotateCcw, X } from "lucide-react";
 import { api } from "@/lib/api";
 import { formatDate } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
@@ -15,6 +15,16 @@ interface VersionRow {
   author_name?: string;
   message?: string;
   created_at: string;
+}
+
+interface VersionContent {
+  title: string;
+  content: string;
+  source: "local" | "git";
+  version_number?: number;
+  commit_sha?: string;
+  created_at: string;
+  author_name?: string;
 }
 
 interface DiffLine {
@@ -51,6 +61,16 @@ function buildDiffQuery(from: VersionRow, to: VersionRow): string {
   return params.toString();
 }
 
+function buildViewQuery(v: VersionRow): string {
+  const params = new URLSearchParams();
+  if (v.source === "git" && v.commit_sha) {
+    params.set("sha", v.commit_sha);
+  } else if (v.version_number) {
+    params.set("version", String(v.version_number));
+  }
+  return params.toString();
+}
+
 function versionLabel(v: VersionRow, t: (key: string, vars?: Record<string, string | number>) => string) {
   if (v.source === "git") {
     return t("document.gitVersion", { sha: v.short_sha || v.commit_sha?.slice(0, 8) || "?" });
@@ -63,17 +83,25 @@ export function DocumentHistory({ documentId, canEdit, onReverted }: DocumentHis
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [diffQuery, setDiffQuery] = useState<string | null>(null);
+  const [viewQuery, setViewQuery] = useState<string | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["doc-versions", documentId],
     queryFn: () => api<{ items: VersionRow[] }>(`/api/documents/${documentId}/versions`),
     enabled: open,
+    staleTime: 60_000,
   });
 
   const { data: diff, isLoading: diffLoading } = useQuery({
     queryKey: ["doc-history-diff", documentId, diffQuery],
     queryFn: () => api<VersionDiff>(`/api/documents/${documentId}/history/diff?${diffQuery}`),
     enabled: diffQuery !== null,
+  });
+
+  const { data: viewed, isLoading: viewLoading } = useQuery({
+    queryKey: ["doc-history-content", documentId, viewQuery],
+    queryFn: () => api<VersionContent>(`/api/documents/${documentId}/history/content?${viewQuery}`),
+    enabled: viewQuery !== null,
   });
 
   const revert = useMutation({
@@ -85,6 +113,12 @@ export function DocumentHistory({ documentId, canEdit, onReverted }: DocumentHis
       setOpen(false);
     },
   });
+
+  const close = () => {
+    setOpen(false);
+    setDiffQuery(null);
+    setViewQuery(null);
+  };
 
   return (
     <>
@@ -99,7 +133,7 @@ export function DocumentHistory({ documentId, canEdit, onReverted }: DocumentHis
                 <History className="h-5 w-5 text-primary" />
                 {t("document.history")}
               </h2>
-              <button type="button" className="btn-ghost !px-2" onClick={() => { setOpen(false); setDiffQuery(null); }}>
+              <button type="button" className="btn-ghost !px-2" onClick={close}>
                 <X className="h-4 w-4" />
               </button>
             </div>
@@ -112,6 +146,7 @@ export function DocumentHistory({ documentId, canEdit, onReverted }: DocumentHis
                 <div className="space-y-2">
                   {data?.items.map((v, i) => {
                     const newer = data.items[i + 1];
+                    const viewKey = buildViewQuery(v);
                     return (
                       <div
                         key={`${v.source}-${v.id}`}
@@ -134,6 +169,19 @@ export function DocumentHistory({ documentId, canEdit, onReverted }: DocumentHis
                           </p>
                         </div>
                         <div className="flex flex-wrap gap-1">
+                          {viewKey && (
+                            <button
+                              type="button"
+                              className="btn-ghost text-xs"
+                              onClick={() => {
+                                setDiffQuery(null);
+                                setViewQuery(viewKey);
+                              }}
+                            >
+                              <Eye className="mr-1 inline h-3.5 w-3.5" />
+                              {t("document.viewVersion")}
+                            </button>
+                          )}
                           {canEdit && v.source === "local" && v.version_number && i > 0 && (
                             <button
                               type="button"
@@ -153,7 +201,10 @@ export function DocumentHistory({ documentId, canEdit, onReverted }: DocumentHis
                             <button
                               type="button"
                               className="btn-ghost text-xs"
-                              onClick={() => setDiffQuery(buildDiffQuery(newer, v))}
+                              onClick={() => {
+                                setViewQuery(null);
+                                setDiffQuery(buildDiffQuery(newer, v));
+                              }}
                             >
                               <GitCompare className="mr-1 inline h-3.5 w-3.5" />
                               {t("document.compareWithLabel", { label: versionLabel(newer, t) })}
@@ -168,9 +219,36 @@ export function DocumentHistory({ documentId, canEdit, onReverted }: DocumentHis
                   )}
                 </div>
               )}
+              {viewQuery && (
+                <div className="mt-6 border-t border-default pt-5">
+                  <div className="mb-3 flex items-center justify-between gap-2">
+                    <h3 className="text-sm font-semibold text-fg">{t("document.versionContentTitle")}</h3>
+                    <button type="button" className="btn-ghost !px-2 text-xs" onClick={() => setViewQuery(null)}>
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                  {viewLoading ? (
+                    <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                  ) : (
+                    <>
+                      {viewed?.title && (
+                        <p className="mb-2 text-sm font-medium text-fg">{viewed.title}</p>
+                      )}
+                      <pre className="max-h-72 overflow-auto whitespace-pre-wrap rounded-lg bg-surface-muted p-3 font-mono text-xs leading-relaxed text-fg-secondary">
+                        {viewed?.content || ""}
+                      </pre>
+                    </>
+                  )}
+                </div>
+              )}
               {diffQuery && (
                 <div className="mt-6 border-t border-default pt-5">
-                  <h3 className="mb-3 text-sm font-semibold text-fg">{t("document.diffTitleGeneric")}</h3>
+                  <div className="mb-3 flex items-center justify-between gap-2">
+                    <h3 className="text-sm font-semibold text-fg">{t("document.diffTitleGeneric")}</h3>
+                    <button type="button" className="btn-ghost !px-2 text-xs" onClick={() => setDiffQuery(null)}>
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
                   {diffLoading ? (
                     <Loader2 className="h-5 w-5 animate-spin text-primary" />
                   ) : (

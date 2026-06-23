@@ -246,6 +246,8 @@ export const en = {
     noVersions: "No saved versions yet.",
     diffTitle: "Changes v{from} → v{to}",
     diffTitleGeneric: "Changes",
+    viewVersion: "View",
+    versionContentTitle: "Version content",
     pendingChanges: "This page has unpublished local edits. Git sync will skip it until you publish via PR or discard changes.",
     viewSyncDiff: "View diff vs Git",
     acceptGit: "Use Git version",

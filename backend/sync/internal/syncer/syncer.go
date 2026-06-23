@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/konstpic/treepage/backend/pkg/contenthash"
@@ -251,6 +252,11 @@ type Syncer struct {
 	token   string
 	logger  *zap.Logger
 	server  *serverclient.Client
+
+	historyMu    sync.Mutex
+	historyCache map[string]historyCacheEntry
+	cloneMu      sync.Mutex
+	cloneFetched map[string]time.Time
 }
 
 func New(db *gorm.DB, workDir, token string, logger *zap.Logger, server *serverclient.Client) *Syncer {

@@ -98,6 +98,54 @@ func (h *Handler) DiffDocumentHistory(c *gin.Context) {
 	c.JSON(http.StatusOK, diff)
 }
 
+func (h *Handler) GetDocumentHistoryContent(c *gin.Context) {
+	doc, err := h.docs.GetByID(c.Request.Context(), c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "document not found"})
+		return
+	}
+	space, err := h.spaces.GetByID(c.Request.Context(), doc.SpaceID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "space not found"})
+		return
+	}
+	if !h.requireSpaceAccess(c, space) {
+		return
+	}
+
+	sha := strings.TrimSpace(c.Query("sha"))
+	if sha != "" {
+		if doc.RepositoryID == nil || h.sync == nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "document is not linked to git"})
+			return
+		}
+		version, gErr := h.docs.GetGitVersion(c.Request.Context(), h.sync, doc, sha)
+		if gErr != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": gErr.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, version)
+		return
+	}
+
+	versionStr := strings.TrimSpace(c.Query("version"))
+	versionNum, pErr := strconv.Atoi(versionStr)
+	if pErr != nil || versionNum < 1 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "specify sha or version"})
+		return
+	}
+	version, err := h.docs.GetVersion(c.Request.Context(), doc.ID, versionNum)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusNotFound, gin.H{"error": "version not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, version)
+}
+
 func (h *Handler) GetDocumentVersion(c *gin.Context) {
 	doc, err := h.docs.GetByID(c.Request.Context(), c.Param("id"))
 	if err != nil {

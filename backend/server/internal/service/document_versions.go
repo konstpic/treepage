@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -114,6 +115,36 @@ func MergeVersionHistory(local []DocumentVersionRow, git []syncclient.GitFileRev
 		return ti.After(tj)
 	})
 	return merged
+}
+
+func (d *DocumentService) GetGitVersion(ctx context.Context, sync *syncclient.Client, doc *models.Document, commitSHA string) (*DocumentVersionDetail, error) {
+	commitSHA = strings.TrimSpace(commitSHA)
+	if commitSHA == "" {
+		return nil, ErrDocumentNotFound
+	}
+	if doc.RepositoryID == nil || sync == nil {
+		return nil, ErrDocumentNotFound
+	}
+	content, err := sync.FileContentAt(ctx, *doc.RepositoryID, doc.Path, commitSHA)
+	if err != nil {
+		return nil, err
+	}
+	title := strings.TrimSuffix(filepath.Base(doc.Path), ".md")
+	for _, line := range strings.Split(content, "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "# ") {
+			title = strings.TrimPrefix(line, "# ")
+			break
+		}
+	}
+	return &DocumentVersionDetail{
+		ID:        commitSHA,
+		Source:    "git",
+		CommitSHA: commitSHA,
+		Title:     title,
+		Content:   content,
+		CreatedAt: time.Now().UTC().Format(time.RFC3339),
+	}, nil
 }
 
 func (d *DocumentService) GetVersion(ctx context.Context, docID string, versionNumber int) (*DocumentVersionDetail, error) {

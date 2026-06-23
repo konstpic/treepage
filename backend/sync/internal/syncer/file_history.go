@@ -12,32 +12,50 @@ import (
 	"github.com/konstpic/treepage/backend/pkg/models"
 )
 
+const (
+	historyCacheTTL      = 3 * time.Minute
+	cloneRefreshInterval = 5 * time.Minute
+	historyCloneDepth    = 200
+)
+
 type GitFileRevision struct {
-	CommitSHA   string `json:"commit_sha"`
-	AuthorName  string `json:"author_name"`
-	Message     string `json:"message"`
-	CreatedAt   string `json:"created_at"`
+	CommitSHA  string `json:"commit_sha"`
+	AuthorName string `json:"author_name"`
+	Message    string `json:"message"`
+	CreatedAt  string `json:"created_at"`
+}
+
+type historyCacheEntry struct {
+	items     []GitFileRevision
+	expiresAt time.Time
 }
 
 func (s *Syncer) FileHistory(ctx context.Context, repoID, relPath string, limit int) ([]GitFileRevision, error) {
 	if limit <= 0 || limit > 100 {
 		limit = 40
 	}
+	cacheKey := fmt.Sprintf("%s:%s:%d", repoID, relPath, limit)
+	if items, ok := s.cachedHistory(cacheKey); ok {
+		return items, nil
+	}
+
 	var repo models.Repository
 	if err := s.db.WithContext(ctx).First(&repo, "id = ?", repoID).Error; err != nil {
 		return nil, err
 	}
-	cloneDir, err := s.ensureRepoClone(ctx, &repo, repo.ID+"-history", 80)
+	cloneDir, err := s.ensureRepoClone(ctx, &repo, repo.ID+"-history", historyCloneDepth)
 	if err != nil {
 		return nil, err
 	}
-	gitPath := filepath.ToSlash(filepath.Join(repo.DocsPath, strings.TrimPrefix(strings.ReplaceAll(relPath, "\\", "/"), "/")))
+	gitPath := gitDocPath(&repo, relPath)
 	out, err := s.gitOutput(ctx, cloneDir, "log", "--follow",
 		fmt.Sprintf("-n%d", limit), "--format=%H%x09%an%x09%at%x09%s", "--", gitPath)
 	if err != nil {
 		return nil, err
 	}
-	return parseGitLog(out), nil
+	items := parseGitLog(out)
+	s.storeHistory(cacheKey, items)
+	return items, nil
 }
 
 func (s *Syncer) FileContentAt(ctx context.Context, repoID, relPath, commitSHA string) (string, error) {
@@ -49,42 +67,87 @@ func (s *Syncer) FileContentAt(ctx context.Context, repoID, relPath, commitSHA s
 	if err := s.db.WithContext(ctx).First(&repo, "id = ?", repoID).Error; err != nil {
 		return "", err
 	}
-	cloneDir, err := s.ensureRepoClone(ctx, &repo, repo.ID+"-history", 80)
+	cloneDir, err := s.ensureRepoClone(ctx, &repo, repo.ID+"-history", historyCloneDepth)
 	if err != nil {
 		return "", err
 	}
-	gitPath := filepath.ToSlash(filepath.Join(repo.DocsPath, strings.TrimPrefix(strings.ReplaceAll(relPath, "\\", "/"), "/")))
-	spec := fmt.Sprintf("%s:%s", commitSHA, gitPath)
-	rev, err := s.gitOutput(ctx, cloneDir, "rev-parse", spec)
-	if err != nil {
+	if err := s.ensureCommit(ctx, cloneDir, commitSHA); err != nil {
 		return "", err
 	}
-	out, err := s.gitOutput(ctx, cloneDir, "cat-file", "-p", strings.TrimSpace(rev))
+	gitPath := gitDocPath(&repo, relPath)
+	out, err := s.gitOutput(ctx, cloneDir, "show", fmt.Sprintf("%s:%s", commitSHA, gitPath))
 	if err != nil {
 		return "", err
 	}
 	return out, nil
 }
 
+func gitDocPath(repo *models.Repository, relPath string) string {
+	return filepath.ToSlash(filepath.Join(repo.DocsPath, strings.TrimPrefix(strings.ReplaceAll(relPath, "\\", "/"), "/")))
+}
+
+func (s *Syncer) cachedHistory(key string) ([]GitFileRevision, bool) {
+	s.historyMu.Lock()
+	defer s.historyMu.Unlock()
+	entry, ok := s.historyCache[key]
+	if !ok || time.Now().After(entry.expiresAt) {
+		return nil, false
+	}
+	out := make([]GitFileRevision, len(entry.items))
+	copy(out, entry.items)
+	return out, true
+}
+
+func (s *Syncer) storeHistory(key string, items []GitFileRevision) {
+	s.historyMu.Lock()
+	defer s.historyMu.Unlock()
+	if s.historyCache == nil {
+		s.historyCache = map[string]historyCacheEntry{}
+	}
+	copied := make([]GitFileRevision, len(items))
+	copy(copied, items)
+	s.historyCache[key] = historyCacheEntry{items: copied, expiresAt: time.Now().Add(historyCacheTTL)}
+}
+
 func (s *Syncer) ensureRepoClone(ctx context.Context, repo *models.Repository, dirSuffix string, depth int) (string, error) {
 	cloneDir := filepath.Join(s.workDir, dirSuffix)
-	token := resolveCredential(repo.AccessTokenRef, s.token)
-	cloneURL := authCloneURL(repo.URL, token)
 	branch := repo.Branch
 	if branch == "" {
 		branch = "main"
 	}
+
+	s.cloneMu.Lock()
+	defer s.cloneMu.Unlock()
+
+	if s.cloneFetched == nil {
+		s.cloneFetched = map[string]time.Time{}
+	}
+
 	if _, err := os.Stat(cloneDir); os.IsNotExist(err) {
+		token := resolveCredential(repo.AccessTokenRef, s.token)
+		cloneURL := authCloneURL(repo.URL, token)
 		args := []string{"clone", "--depth", strconv.Itoa(depth), "--branch", branch, cloneURL, cloneDir}
 		if err := s.runGit(ctx, s.workDir, args...); err != nil {
 			return "", err
 		}
+		s.cloneFetched[dirSuffix] = time.Now()
 		return cloneDir, nil
 	}
+
+	if time.Since(s.cloneFetched[dirSuffix]) < cloneRefreshInterval {
+		return cloneDir, nil
+	}
+
 	_ = s.runGit(ctx, cloneDir, "fetch", "--depth", strconv.Itoa(depth), "origin", branch)
-	_ = s.runGit(ctx, cloneDir, "checkout", branch)
-	_ = s.runGit(ctx, cloneDir, "reset", "--hard", "origin/"+branch)
+	s.cloneFetched[dirSuffix] = time.Now()
 	return cloneDir, nil
+}
+
+func (s *Syncer) ensureCommit(ctx context.Context, cloneDir, commitSHA string) error {
+	if _, err := s.gitOutput(ctx, cloneDir, "cat-file", "-e", commitSHA+"^{commit}"); err == nil {
+		return nil
+	}
+	return s.runGit(ctx, cloneDir, "fetch", "--depth=1", "origin", commitSHA)
 }
 
 func parseGitLog(raw string) []GitFileRevision {
