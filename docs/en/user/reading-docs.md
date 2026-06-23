@@ -41,6 +41,12 @@ Space > Folder > Document
 
 Each element is a link for quick navigation.
 
+## Comments
+
+Signed-in users see a **Comments** column on the right. You can discuss the page and mention colleagues with `@` — they receive a notification with a link to your comment.
+
+Details: [Comments and notifications](comments-and-notifications.md)
+
 ## Auto-translation
 
 If the administrator enabled **Document auto-translation**, pages are translated to the interface language via LLM. Translated pages show an "Automatically translated" label.
@@ -75,7 +81,14 @@ Documents can be opened via direct link — convenient for sharing:
 https://docs.example.com/spaces/engineering/docs/guides/installation
 ```
 
+Comment anchor (after sign-in):
+
+```
+https://docs.example.com/spaces/engineering/docs/guides/installation#comment-{uuid}
+```
+
 ## Related sections
 
+- [Comments and notifications](comments-and-notifications.md)
 - [Editing documents](editing-docs.md)
 - [Search](search.md)

@@ -58,6 +58,29 @@ Obtain token: OIDC flow or `POST /api/auth/login` (dev only).
 
 Query params: `q`, `space`, `author`, `tags`, `limit`, `offset`
 
+## Comments & notifications
+
+| Method | Path | Auth | Description |
+|--------|------|:----:|-------------|
+| GET | `/api/documents/{id}/comments` | ✅ | Comment thread for a document |
+| POST | `/api/documents/{id}/comments` | ✅ | Create comment (`body`, optional `parent_id`) |
+| DELETE | `/api/comments/{id}` | ✅ | Delete own comment (or admin) |
+| GET | `/api/users/mention-suggest?q=` | ✅ | Autocomplete users for `@mentions` |
+| GET | `/api/notifications` | ✅ | List notifications (`link` field for deep URLs) |
+| GET | `/api/notifications/unread-count` | ✅ | Unread count |
+| POST | `/api/notifications/{id}/read` | ✅ | Mark one read |
+| POST | `/api/notifications/read-all` | ✅ | Mark all read |
+
+Mention notifications use `resource_type: comment` and `link` like `/spaces/{slug}/docs/{doc}#comment-{id}`.
+
+## RAG
+
+| Method | Path | Auth | Description |
+|--------|------|:----:|-------------|
+| POST | `/api/rag/ask` | ✅ | AI answer from indexed docs |
+| POST | `/api/rag/feedback` | ✅ | Feedback on RAG answer |
+| GET | `/api/admin/rag/stats` | admin | Indexing statistics |
+
 ## Admin API (`backend-server`)
 
 > Requires `admin` or `super_admin` role.

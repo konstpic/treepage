@@ -48,6 +48,8 @@
 - [Чтение документов](user/reading-docs.md)
 - [Поиск](user/search.md)
 - [Редактирование документов](user/editing-docs.md)
+- [Комментарии и уведомления](user/comments-and-notifications.md)
+- [Обучение по интерфейсу](user/onboarding-tour.md)
 - [Книги (AI-сборки)](user/books.md)
 
 ### [Руководство администратора](admin/README.md)
@@ -62,6 +64,7 @@
 - [Группы](admin/groups.md)
 - [Системные настройки](admin/settings.md)
 - [OIDC-провайдеры](admin/oidc.md)
+- [RAG индексация](admin/rag.md)
 
 ### [Эксплуатация](operator/README.md)
 

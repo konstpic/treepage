@@ -90,12 +90,19 @@ REDIS_ADDR=redis:6379                            # auth (несколько ре
 
 ### Frontend
 
-- Комментарии и workflow на странице документа
+- Колонка комментариев с `@упоминаниями` и ссылками из уведомлений — [Комментарии и уведомления](../user/comments-and-notifications.md)
+- Режимы редактора **Статья** / **Markdown** — [Редактирование](../user/editing-docs.md)
+- Splash при входе + тур по интерфейсу — [Обучение](../user/onboarding-tour.md)
+- Локализация админки (EN/RU) и подсказки **?** на карточках настроек
+- `/admin/rag` — статистика индекса RAG и переиндексация
 - `/admin/analytics` — дашборд аналитики
 - `/search` — вкладка **Спросить документацию** (RAG)
 
 ### Где читать
 
+- [Комментарии и уведомления](../user/comments-and-notifications.md)
+- [Обучение по интерфейсу](../user/onboarding-tour.md)
+- [RAG индексация (admin)](../admin/rag.md)
 - [Поиск — RAG](../user/search.md)
 - [RBAC](../admin/rbac.md)
 

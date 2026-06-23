@@ -30,6 +30,19 @@ OIDC (OpenID Connect) provides Single Sign-On through a corporate Identity Provi
 
 Client secret is set via env (`OIDC_CLIENT_SECRET`) or Kubernetes Secret — not through UI.
 
+## Provider from CONFIG_PATH (read-only card)
+
+When OIDC is configured in `backend-auth` YAML/env (`CONFIG_PATH`), the provider is **synchronized to the database** on auth service startup and shown in the admin list as **Authentik (config)** (or similar).
+
+| Property | Behavior |
+|----------|----------|
+| Source | `CONFIG_PATH` / Helm `auth.oidc.*` — not editable in UI |
+| Login | Handled by `backend-auth` |
+| Admin UI | View issuer, client ID, redirect URL; edit claims mapping reference |
+| Changes | Update YAML/env and **restart backend-auth** |
+
+Additional providers can still be added via **Add Provider** for catalog/documentation; the active login provider follows auth service config.
+
 ## Provider-side configuration
 
 ### Authentik (local dev)

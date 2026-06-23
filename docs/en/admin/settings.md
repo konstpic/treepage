@@ -13,7 +13,11 @@ Global UI language for all users.
 | English | `en` |
 | Русский | `ru` |
 
-Applied immediately on selection (auto-save).
+Applied immediately on selection (auto-save). All **admin panel** screens (spaces, repositories, users, RAG, OIDC, etc.) use the same locale.
+
+## Contextual help
+
+On **System settings**, **RAG indexing**, and other admin cards, the **?** icon next to the section title shows a short hint about that block.
 
 ## Appearance (theme)
 

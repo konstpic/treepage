@@ -58,6 +58,29 @@ Authorization: Bearer <access_token>
 
 Query params: `q`, `space`, `author`, `tags`, `limit`, `offset`
 
+## Комментарии и уведомления
+
+| Method | Path | Auth | Описание |
+|--------|------|:----:|----------|
+| GET | `/api/documents/{id}/comments` | ✅ | Тред комментариев документа |
+| POST | `/api/documents/{id}/comments` | ✅ | Создать комментарий (`body`, опц. `parent_id`) |
+| DELETE | `/api/comments/{id}` | ✅ | Удалить свой комментарий (или admin) |
+| GET | `/api/users/mention-suggest?q=` | ✅ | Автодополнение для `@упоминаний` |
+| GET | `/api/notifications` | ✅ | Список уведомлений (поле `link` для перехода) |
+| GET | `/api/notifications/unread-count` | ✅ | Число непрочитанных |
+| POST | `/api/notifications/{id}/read` | ✅ | Отметить прочитанным |
+| POST | `/api/notifications/read-all` | ✅ | Прочитать все |
+
+Уведомления об упоминании: `resource_type: comment`, `link` вида `/spaces/{slug}/docs/{doc}#comment-{id}`.
+
+## RAG
+
+| Method | Path | Auth | Описание |
+|--------|------|:----:|----------|
+| POST | `/api/rag/ask` | ✅ | AI-ответ по проиндексированным docs |
+| POST | `/api/rag/feedback` | ✅ | Обратная связь по ответу RAG |
+| GET | `/api/admin/rag/stats` | admin | Статистика индексации |
+
 ## Admin API (`backend-server`)
 
 > Требуется роль `admin` или `super_admin`.

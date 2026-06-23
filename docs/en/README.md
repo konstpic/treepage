@@ -48,6 +48,8 @@ Working with documentation: spaces, reading, search, editing, books.
 - [Reading documents](user/reading-docs.md)
 - [Search](user/search.md)
 - [Editing documents](user/editing-docs.md)
+- [Comments and notifications](user/comments-and-notifications.md)
+- [Onboarding tour](user/onboarding-tour.md)
 - [Books (AI compilations)](user/books.md)
 
 ### [Administrator guide](admin/README.md)
@@ -62,6 +64,7 @@ Platform management: spaces, repositories, users, OIDC, settings.
 - [Groups](admin/groups.md)
 - [System settings](admin/settings.md)
 - [OIDC providers](admin/oidc.md)
+- [RAG indexing](admin/rag.md)
 
 ### [Operations](operator/README.md)
 

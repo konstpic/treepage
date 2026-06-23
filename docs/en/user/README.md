@@ -21,6 +21,8 @@ TreePage is a platform for reading and editing documentation synchronized from G
 | RAG — ask documentation | [Search — RAG](search.md) |
 | My pages (favorites) | `/me` |
 | Editing | [Editing documents](editing-docs.md) |
+| Comments & @mentions | [Comments and notifications](comments-and-notifications.md) |
+| Interface tour | [Onboarding tour](onboarding-tour.md) |
 | AI documentation compilations | [Books](books.md) |
 
 ## Quick start for users
@@ -37,4 +39,4 @@ If a space is marked as **public**, documents are available without login. On th
 
 ## Interface language
 
-The interface language (English / Russian) is set globally by the administrator. When auto-translation is enabled, documents may display in the interface language.
+The interface language (English / Russian) is set globally by the administrator. The **admin panel** and all main UI screens follow the selected locale. When auto-translation is enabled, documents may display in the interface language.

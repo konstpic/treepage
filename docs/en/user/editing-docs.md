@@ -6,7 +6,12 @@
 
 1. Open a document
 2. Click **Edit**
-3. Switch between **Editor** and **Preview**
+3. Choose editor mode:
+   - **Markdown** — source editing with formatting toolbar, wiki links, Mermaid
+   - **Article** — human-friendly WYSIWYG-style editor (saved as Markdown); default for non-`.md` paths
+4. **Ctrl+Space** — autocomplete (can be toggled in the toolbar)
+5. Right-click — formatting context menu
+6. Switch between **Editor** and **Preview**
 
 ## Creating a new page
 
@@ -37,11 +42,12 @@ Saving creates a new document **version**.
 
 Editors can upload files (up to 10 MiB) on the document page. Files are stored on the server (`ATTACHMENTS_DIR`) and linked to the document.
 
-## Favorites and recent
+## Favorites, comments, and notifications
 
 - Star a document to add it to **My pages** (`/me`)
 - Recently viewed documents appear automatically on the same page
-- Notifications about publishes and new documents appear in the bell icon in the navigation bar
+- **Comments** — discuss the page in the right sidebar; type `@` to mention a user ([details](comments-and-notifications.md))
+- **Notifications** — bell icon: mentions link directly to the comment; editors also receive publish/workflow alerts
 
 ## Git-backed documents
 
@@ -120,5 +126,6 @@ Details: [Git Sync (admin)](../admin/git-sync.md)
 
 ## Related sections
 
+- [Comments and notifications](comments-and-notifications.md)
 - [Reading documents](reading-docs.md)
 - [Git Sync](../admin/git-sync.md)

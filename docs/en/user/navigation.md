@@ -10,6 +10,9 @@ Landing page describing TreePage features. The **Open spaces** button leads to t
 |------|-----|-------------|
 | Spaces | `/spaces` | List of accessible spaces |
 | Search | `/search` | Full-text search |
+| My pages | `/me` | Favorites and recently viewed documents |
+| Notifications | 🔔 bell | Mentions, publishes, and space events |
+| Tour | 🎓 icon | Restart the [interface onboarding tour](onboarding-tour.md) |
 | Settings | `/admin/*` | Admin panel (admin/super_admin only) |
 | Sign in / Account | `/auth` | Login and logout |
 
@@ -48,9 +51,19 @@ On the `/spaces` page, three modes are available:
 
 ## Document page (`/spaces/:slug/docs/:docSlug`)
 
+```
+┌──────────────┬────────────────────────────┬─────────────────┐
+│  Pages       │  Document content          │  Comments       │
+│  Books       │  (Markdown + Mermaid)      │  @mentions      │
+│              │                            │                 │
+│  📄 doc-1    │  Breadcrumbs               │  [Post comment] │
+└──────────────┴────────────────────────────┴─────────────────┘
+```
+
 - **Breadcrumbs** — navigation trail
 - **Edit** — switch to editor mode (editors+)
 - **Version history** — view previous versions and diff
+- **Comments** — sidebar for discussion; see [Comments and notifications](comments-and-notifications.md)
 
 ## Search (`/search`)
 
@@ -68,6 +81,14 @@ Available to users with `admin` or `super_admin` roles:
 | Groups | `/admin/groups` |
 | System settings | `/admin/settings` |
 | OIDC providers | `/admin/oidc` |
+| Analytics | `/admin/analytics` |
+| RAG indexing | `/admin/rag` |
+| Audit log | `/admin/audit` |
+
+## First login experience
+
+1. **Splash screen** — logo animation; after OIDC/local login, a welcome line with your display name
+2. **Onboarding tour** — optional walkthrough of navigation and main sections ([details](onboarding-tour.md))
 
 ## Themes
 

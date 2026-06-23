@@ -90,12 +90,19 @@ REDIS_ADDR=redis:6379                            # auth (multiple replicas)
 
 ### Frontend
 
-- Comments and workflow on document page
+- Comments sidebar with `@mentions` and notification deep links — [Comments and notifications](../user/comments-and-notifications.md)
+- Article / Markdown editor modes — [Editing documents](../user/editing-docs.md)
+- First-login splash + onboarding tour — [Onboarding tour](../user/onboarding-tour.md)
+- Localized admin UI (EN/RU) and contextual **?** hints on settings cards
+- `/admin/rag` — RAG index statistics and reindex
 - `/admin/analytics` — analytics dashboard
 - `/search` — **Ask documentation** tab (RAG)
 
 ### Where to read more
 
+- [Comments and notifications](../user/comments-and-notifications.md)
+- [Onboarding tour](../user/onboarding-tour.md)
+- [RAG indexing (admin)](../admin/rag.md)
 - [Search — RAG](../user/search.md)
 - [RBAC](../admin/rbac.md)
 

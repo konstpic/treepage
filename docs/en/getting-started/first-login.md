@@ -22,6 +22,15 @@ On first startup TreePage automatically creates an administrator account and a *
 4. Enter `admin@local` / `admin` (fields may be pre-filled)
 5. After login open **Spaces** → **Welcome** (`/spaces/welcome`)
 
+### Welcome animation and onboarding
+
+After a successful login (local or OIDC):
+
+1. **Splash screen** — TreePage logo animation; your display name may appear on the welcome line
+2. **Interface tour** — a short guided walkthrough of navigation and main sections (starts after the splash; can be skipped or restarted from the 🎓 icon)
+
+Details: [Onboarding tour](../user/onboarding-tour.md)
+
 More about the welcome space: [Welcome space](welcome-space.md).
 
 ## Local admin vs OIDC
