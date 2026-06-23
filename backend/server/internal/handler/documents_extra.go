@@ -3,6 +3,7 @@ package handler
 import (
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/konstpic/treepage/backend/server/internal/service"
@@ -28,7 +29,73 @@ func (h *Handler) ListDocumentVersions(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+	if doc.RepositoryID != nil && h.sync != nil {
+		if gitItems, gErr := h.sync.FileHistory(c.Request.Context(), *doc.RepositoryID, doc.Path, 40); gErr == nil {
+			versions = service.MergeVersionHistory(versions, gitItems)
+		}
+	}
 	c.JSON(http.StatusOK, gin.H{"items": versions})
+}
+
+func (h *Handler) DiffDocumentHistory(c *gin.Context) {
+	doc, err := h.docs.GetByID(c.Request.Context(), c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "document not found"})
+		return
+	}
+	space, err := h.spaces.GetByID(c.Request.Context(), doc.SpaceID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "space not found"})
+		return
+	}
+	if !h.requireSpaceAccess(c, space) {
+		return
+	}
+
+	fromSHA := strings.TrimSpace(c.Query("from_sha"))
+	toSHA := strings.TrimSpace(c.Query("to_sha"))
+	fromStr := strings.TrimSpace(c.Query("from"))
+	toStr := strings.TrimSpace(c.Query("to"))
+
+	var diff *service.VersionDiff
+	switch {
+	case fromSHA != "" && toSHA != "":
+		diff, err = h.docs.DiffGitVersions(c.Request.Context(), h.sync, doc, fromSHA, toSHA)
+	case fromStr != "" && toStr != "":
+		fromVer, pErr := strconv.Atoi(fromStr)
+		toVer, tErr := strconv.Atoi(toStr)
+		if pErr != nil || tErr != nil || fromVer < 1 || toVer < 1 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid version"})
+			return
+		}
+		diff, err = h.docs.DiffVersions(c.Request.Context(), doc.ID, fromVer, toVer)
+	case fromSHA != "" && toStr != "":
+		toVer, tErr := strconv.Atoi(toStr)
+		if tErr != nil || toVer < 1 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid version"})
+			return
+		}
+		diff, err = h.docs.DiffMixedVersionsReverse(c.Request.Context(), h.sync, doc, fromSHA, toVer)
+	case fromStr != "" && toSHA != "":
+		fromVer, pErr := strconv.Atoi(fromStr)
+		if pErr != nil || fromVer < 1 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid version"})
+			return
+		}
+		diff, err = h.docs.DiffMixedVersions(c.Request.Context(), h.sync, doc, fromVer, toSHA)
+	default:
+		c.JSON(http.StatusBadRequest, gin.H{"error": "specify from/to or from_sha/to_sha"})
+		return
+	}
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusNotFound, gin.H{"error": "version not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, diff)
 }
 
 func (h *Handler) GetDocumentVersion(c *gin.Context) {

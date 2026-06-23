@@ -138,6 +138,7 @@ func (s *Syncer) upsertDocument(ctx context.Context, repo models.Repository, rel
 			s.logger.Warn("rag index failed after create", zap.String("slug", slug), zap.Error(err))
 		}
 		s.notifySearchReindex(ctx, doc.ID)
+		s.recordGitVersion(ctx, doc, content, commitSHA)
 		return true, nil
 	}
 	if err != nil {
@@ -167,7 +168,31 @@ func (s *Syncer) upsertDocument(ctx context.Context, repo models.Repository, rel
 		s.logger.Warn("rag index failed after update", zap.String("slug", slug), zap.Error(err))
 	}
 	s.notifySearchReindex(ctx, doc.ID)
+	s.recordGitVersion(ctx, doc, content, commitSHA)
 	return true, nil
+}
+
+func (s *Syncer) recordGitVersion(ctx context.Context, doc models.Document, content, commitSHA string) {
+	commitSHA = strings.TrimSpace(commitSHA)
+	if commitSHA == "" {
+		return
+	}
+	var count int64
+	s.db.WithContext(ctx).Model(&models.DocumentVersion{}).
+		Where("document_id = ? AND commit_sha = ?", doc.ID, commitSHA).
+		Count(&count)
+	if count > 0 {
+		return
+	}
+	var maxVersion int
+	s.db.WithContext(ctx).Model(&models.DocumentVersion{}).
+		Where("document_id = ?", doc.ID).
+		Select("COALESCE(MAX(version_number), 0)").Scan(&maxVersion)
+	s.db.WithContext(ctx).Create(&models.DocumentVersion{
+		DocumentID: doc.ID, VersionNumber: maxVersion + 1,
+		Title: doc.Title, Content: content, CommitSHA: commitSHA,
+		AuthorName: "Git",
+	})
 }
 
 func (s *Syncer) removeOrphanDocuments(ctx context.Context, repo models.Repository, seen map[string]struct{}) {

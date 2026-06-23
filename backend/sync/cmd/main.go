@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -99,6 +100,25 @@ func main() {
 			return
 		}
 		c.JSON(http.StatusOK, result)
+	})
+
+	internal.GET("/repositories/:id/file-history", func(c *gin.Context) {
+		limit, _ := strconv.Atoi(c.DefaultQuery("limit", "40"))
+		items, err := syncSvc.FileHistory(c.Request.Context(), c.Param("id"), c.Query("path"), limit)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"items": items})
+	})
+
+	internal.GET("/repositories/:id/file-content", func(c *gin.Context) {
+		content, err := syncSvc.FileContentAt(c.Request.Context(), c.Param("id"), c.Query("path"), c.Query("sha"))
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"content": content})
 	})
 
 	internal.POST("/repositories/:id", func(c *gin.Context) {

@@ -126,6 +126,7 @@ func (h *Handler) Register(r *gin.Engine) {
 		apiAuth.GET("/documents/:id/sync-diff", h.GetDocumentSyncDiff)
 		apiAuth.POST("/documents/:id/sync-resolve", h.ResolveDocumentSyncConflict)
 		apiAuth.GET("/documents/:id/versions", h.ListDocumentVersions)
+		apiAuth.GET("/documents/:id/history/diff", h.DiffDocumentHistory)
 		apiAuth.GET("/documents/:id/versions/:version/diff", h.DiffDocumentVersions)
 		apiAuth.GET("/documents/:id/versions/:version", h.GetDocumentVersion)
 		apiAuth.GET("/spaces/:slug/repositories", h.ListRepositories)
