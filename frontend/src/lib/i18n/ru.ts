@@ -36,6 +36,8 @@ export const ru = {
     markRead: "Прочитано",
     markAllRead: "Прочитать все",
     viewAll: "Избранное и недавние",
+    mentionTitle: "Вас упомянули",
+    openComment: "Перейти к комментарию",
   },
   attachments: {
     title: "Вложения",

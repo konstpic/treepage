@@ -185,7 +185,17 @@ func (h *Handler) GetSpace(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "space not found"})
 		return
 	}
-	if !h.requireSpaceAccess(c, space) {
+	userID := c.GetString("userID")
+	mentionedInSpace := false
+	if userID != "" {
+		var mErr error
+		mentionedInSpace, mErr = h.comments.IsMentionedInSpace(c.Request.Context(), space.ID, userID)
+		if mErr != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": mErr.Error()})
+			return
+		}
+	}
+	if !mentionedInSpace && !h.requireSpaceAccess(c, space) {
 		return
 	}
 	out := gin.H{
@@ -259,6 +269,20 @@ func (h *Handler) GetDocument(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "space not found"})
 		return
 	}
+	userID := c.GetString("userID")
+	if userID != "" {
+		if doc, dErr := h.docs.GetBySlug(c.Request.Context(), space.ID, c.Param("docSlug")); dErr == nil {
+			mentioned, mErr := h.comments.IsMentionedOnDocument(c.Request.Context(), doc.ID, userID)
+			if mErr != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": mErr.Error()})
+				return
+			}
+			if mentioned {
+				h.writeDocumentView(c, space, doc, userID)
+				return
+			}
+		}
+	}
 	if !h.requireSpaceAccess(c, space) {
 		return
 	}
@@ -279,7 +303,10 @@ func (h *Handler) GetDocument(c *gin.Context) {
 	if !h.requireDocumentAccess(c, space, doc) {
 		return
 	}
-	userID := c.GetString("userID")
+	h.writeDocumentView(c, space, doc, userID)
+}
+
+func (h *Handler) writeDocumentView(c *gin.Context, space *models.Space, doc *models.Document, userID string) {
 	if userID != "" {
 		_ = h.prefs.RecordView(c.Request.Context(), userID, doc.ID, space.ID)
 	}

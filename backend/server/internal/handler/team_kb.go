@@ -55,7 +55,7 @@ func (h *Handler) ListRecent(c *gin.Context) {
 
 func (h *Handler) ListNotifications(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
-	items, err := h.notifications.List(c.Request.Context(), c.GetString("userID"), limit)
+	items, err := h.notifications.ListViews(c.Request.Context(), c.GetString("userID"), limit)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

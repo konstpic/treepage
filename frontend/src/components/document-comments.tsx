@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, MessageSquare } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { api, ApiError } from "@/lib/api";
 import { MentionTextarea } from "@/components/mention-textarea";
 import { useAuthStore } from "@/lib/store";
@@ -25,6 +26,7 @@ interface DocumentCommentsProps {
 
 export function DocumentComments({ documentId, variant = "inline", className }: DocumentCommentsProps) {
   const { t } = useI18n();
+  const location = useLocation();
   const { isAuthenticated } = useAuthStore();
   const qc = useQueryClient();
   const [body, setBody] = useState("");
@@ -50,12 +52,27 @@ export function DocumentComments({ documentId, variant = "inline", className }: 
     onError: (e) => setError(e instanceof ApiError ? e.message : t("common.failed")),
   });
 
+  useEffect(() => {
+    if (isLoading || !data?.items?.length) return;
+    const hash = location.hash;
+    if (!hash.startsWith("#comment-")) return;
+    const el = document.getElementById(hash.slice(1));
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    el.classList.add("comment-highlight");
+    const timer = window.setTimeout(() => el.classList.remove("comment-highlight"), 2500);
+    return () => window.clearTimeout(timer);
+  }, [isLoading, data, location.hash]);
+
   if (!isAuthenticated) return null;
 
   function renderComment(c: Comment, depth = 0) {
     return (
       <div key={c.id} className={depth > 0 ? "ml-3 mt-2 border-l border-default pl-2" : ""}>
-        <div className="rounded-lg bg-surface-muted px-3 py-2 text-sm">
+        <div
+          id={`comment-${c.id}`}
+          className="rounded-lg bg-surface-muted px-3 py-2 text-sm scroll-mt-24"
+        >
           <div className="flex items-center justify-between gap-2">
             <span className="font-medium text-fg">{c.author_name || t("comments.anonymous")}</span>
             <span className="text-xs text-subtle">{formatDate(c.created_at)}</span>

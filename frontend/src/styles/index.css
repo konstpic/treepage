@@ -442,3 +442,18 @@ body {
 .product-tour__card {
   @apply absolute z-10 w-80 max-w-[calc(100vw-2rem)] rounded-2xl border border-default bg-surface p-4 shadow-2xl;
 }
+
+.comment-highlight {
+  @apply ring-2 ring-primary/60;
+  animation: comment-flash 2.5s ease-out;
+}
+
+@keyframes comment-flash {
+  0%,
+  15% {
+    background-color: color-mix(in srgb, var(--color-primary) 18%, transparent);
+  }
+  100% {
+    background-color: transparent;
+  }
+}

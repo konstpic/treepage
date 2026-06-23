@@ -19,7 +19,7 @@ const (
 	WorkflowPublished = "published"
 )
 
-var mentionRe = regexp.MustCompile(`@([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})`)
+var mentionRe = regexp.MustCompile(`@([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+)`)
 
 type CommentService struct {
 	db *gorm.DB
@@ -87,6 +87,31 @@ func (s *CommentService) GetByID(ctx context.Context, commentID string) (*models
 		return nil, err
 	}
 	return &c, nil
+}
+
+// IsMentionedOnDocument reports whether the user was @mentioned on any comment in the document.
+func (s *CommentService) IsMentionedOnDocument(ctx context.Context, documentID, userID string) (bool, error) {
+	if userID == "" {
+		return false, nil
+	}
+	var count int64
+	err := s.db.WithContext(ctx).Model(&models.DocumentComment{}).
+		Where("document_id = ? AND ? = ANY(mentions)", documentID, userID).
+		Count(&count).Error
+	return count > 0, err
+}
+
+// IsMentionedInSpace reports whether the user was @mentioned on any document in the space.
+func (s *CommentService) IsMentionedInSpace(ctx context.Context, spaceID, userID string) (bool, error) {
+	if userID == "" {
+		return false, nil
+	}
+	var count int64
+	err := s.db.WithContext(ctx).Table("document_comments c").
+		Joins("JOIN documents d ON d.id = c.document_id").
+		Where("d.space_id = ? AND ? = ANY(c.mentions)", spaceID, userID).
+		Count(&count).Error
+	return count > 0, err
 }
 
 func (s *CommentService) Delete(ctx context.Context, commentID, userID string, isAdmin bool) error {

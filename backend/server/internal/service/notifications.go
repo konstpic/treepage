@@ -2,12 +2,18 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/konstpic/treepage/backend/pkg/models"
 	"github.com/konstpic/treepage/backend/pkg/notify"
 	"gorm.io/gorm"
 )
+
+type NotificationView struct {
+	models.Notification
+	Link string `json:"link,omitempty"`
+}
 
 type NotificationService struct {
 	db      *gorm.DB
@@ -31,6 +37,65 @@ func (s *NotificationService) List(ctx context.Context, userID string, limit int
 		Limit(limit).
 		Find(&items).Error
 	return items, err
+}
+
+func (s *NotificationService) ListViews(ctx context.Context, userID string, limit int) ([]NotificationView, error) {
+	items, err := s.List(ctx, userID, limit)
+	if err != nil {
+		return nil, err
+	}
+	views := make([]NotificationView, len(items))
+	for i, n := range items {
+		views[i] = NotificationView{Notification: n, Link: s.resolveLink(ctx, &n)}
+	}
+	return views, nil
+}
+
+func (s *NotificationService) resolveLink(ctx context.Context, n *models.Notification) string {
+	if n.ResourceType == nil || n.ResourceID == nil {
+		return ""
+	}
+	switch *n.ResourceType {
+	case "comment":
+		return s.commentDeepLink(ctx, *n.ResourceID)
+	case "document":
+		return s.documentDeepLink(ctx, *n.ResourceID)
+	default:
+		return ""
+	}
+}
+
+func (s *NotificationService) commentDeepLink(ctx context.Context, commentID string) string {
+	var row struct {
+		SpaceSlug string
+		DocSlug   string
+	}
+	err := s.db.WithContext(ctx).Table("document_comments c").
+		Select("s.slug AS space_slug, d.slug AS doc_slug").
+		Joins("JOIN documents d ON d.id = c.document_id").
+		Joins("JOIN spaces s ON s.id = d.space_id").
+		Where("c.id = ?", commentID).
+		Scan(&row).Error
+	if err != nil || row.SpaceSlug == "" || row.DocSlug == "" {
+		return ""
+	}
+	return fmt.Sprintf("/spaces/%s/docs/%s#comment-%s", row.SpaceSlug, row.DocSlug, commentID)
+}
+
+func (s *NotificationService) documentDeepLink(ctx context.Context, documentID string) string {
+	var row struct {
+		SpaceSlug string
+		DocSlug   string
+	}
+	err := s.db.WithContext(ctx).Table("documents d").
+		Select("s.slug AS space_slug, d.slug AS doc_slug").
+		Joins("JOIN spaces s ON s.id = d.space_id").
+		Where("d.id = ?", documentID).
+		Scan(&row).Error
+	if err != nil || row.SpaceSlug == "" || row.DocSlug == "" {
+		return ""
+	}
+	return fmt.Sprintf("/spaces/%s/docs/%s", row.SpaceSlug, row.DocSlug)
 }
 
 func (s *NotificationService) UnreadCount(ctx context.Context, userID string) (int64, error) {

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Bell, Check, Loader2 } from "lucide-react";
+import { Bell, Check, ExternalLink, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "@/lib/api";
@@ -12,10 +12,16 @@ interface Notification {
   type: string;
   title: string;
   body: string;
+  link?: string;
   resource_type?: string;
   resource_id?: string;
   read_at?: string;
   created_at: string;
+}
+
+function notificationTitle(n: Notification, t: (key: string) => string) {
+  if (n.type === "comment.mention") return t("notifications.mentionTitle");
+  return n.title;
 }
 
 export function NotificationsBell() {
@@ -57,6 +63,11 @@ export function NotificationsBell() {
 
   const unread = countData?.count ?? 0;
 
+  function openNotification(n: Notification) {
+    if (!n.read_at) markRead.mutate(n.id);
+    setOpen(false);
+  }
+
   return (
     <div className="relative">
       <button
@@ -97,33 +108,58 @@ export function NotificationsBell() {
               ) : !data?.items.length ? (
                 <p className="px-4 py-6 text-center text-sm text-muted">{t("notifications.empty")}</p>
               ) : (
-                data.items.map((n) => (
-                  <div
-                    key={n.id}
-                    className={cn(
-                      "border-b border-default px-4 py-3 last:border-0",
-                      !n.read_at && "bg-surface-muted/50",
-                    )}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium text-fg">{n.title}</p>
-                        {n.body && <p className="mt-0.5 text-xs text-muted">{n.body}</p>}
-                        <p className="mt-1 text-[10px] text-subtle">{formatDate(n.created_at)}</p>
-                      </div>
-                      {!n.read_at && (
-                        <button
-                          type="button"
-                          className="btn-ghost !p-1"
-                          title={t("notifications.markRead")}
-                          onClick={() => markRead.mutate(n.id)}
-                        >
-                          <Check className="h-3.5 w-3.5" />
-                        </button>
+                data.items.map((n) => {
+                  const title = notificationTitle(n, t);
+                  const content = (
+                    <>
+                      <p className="text-sm font-medium text-fg">{title}</p>
+                      {n.body && <p className="mt-0.5 text-xs text-muted">{n.body}</p>}
+                      {n.link && (
+                        <p className="mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-primary">
+                          <ExternalLink className="h-3 w-3" />
+                          {t("notifications.openComment")}
+                        </p>
                       )}
+                      <p className="mt-1 text-[10px] text-subtle">{formatDate(n.created_at)}</p>
+                    </>
+                  );
+
+                  return (
+                    <div
+                      key={n.id}
+                      className={cn(
+                        "border-b border-default px-4 py-3 last:border-0",
+                        !n.read_at && "bg-surface-muted/50",
+                      )}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          {n.link ? (
+                            <Link
+                              to={n.link}
+                              className="block rounded-lg transition-colors hover:opacity-90"
+                              onClick={() => openNotification(n)}
+                            >
+                              {content}
+                            </Link>
+                          ) : (
+                            content
+                          )}
+                        </div>
+                        {!n.read_at && (
+                          <button
+                            type="button"
+                            className="btn-ghost !p-1"
+                            title={t("notifications.markRead")}
+                            onClick={() => markRead.mutate(n.id)}
+                          >
+                            <Check className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
             <div className="border-t border-default px-4 py-2 text-center">

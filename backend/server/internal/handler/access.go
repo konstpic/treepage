@@ -77,6 +77,17 @@ func (h *Handler) canUseLLMInSpace(c *gin.Context, space *models.Space) bool {
 }
 
 func (h *Handler) requireDocumentAccess(c *gin.Context, space *models.Space, doc *models.Document) bool {
+	userID := c.GetString("userID")
+	if userID != "" {
+		mentioned, err := h.comments.IsMentionedOnDocument(c.Request.Context(), doc.ID, userID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return false
+		}
+		if mentioned {
+			return true
+		}
+	}
 	if !h.requireSpaceAccess(c, space) {
 		return false
 	}

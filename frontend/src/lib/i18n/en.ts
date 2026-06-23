@@ -36,6 +36,8 @@ export const en = {
     markRead: "Mark read",
     markAllRead: "Mark all read",
     viewAll: "View favorites & recent",
+    mentionTitle: "You were mentioned",
+    openComment: "Open comment",
   },
   attachments: {
     title: "Attachments",

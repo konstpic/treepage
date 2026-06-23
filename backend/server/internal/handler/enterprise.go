@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -135,9 +136,16 @@ func (h *Handler) CreateDocumentComment(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	rt, rid := "document", doc.ID
+	rt, rid := "comment", comment.ID
+	notifyBody := doc.Title
+	if snippet := strings.TrimSpace(body.Body); snippet != "" {
+		if len(snippet) > 120 {
+			snippet = snippet[:117] + "..."
+		}
+		notifyBody = doc.Title + ": " + snippet
+	}
 	for _, uid := range mentions {
-		_, _ = h.notifications.Create(c.Request.Context(), uid, "comment.mention", "You were mentioned", doc.Title, &rt, &rid)
+		_, _ = h.notifications.Create(c.Request.Context(), uid, "comment.mention", "You were mentioned", notifyBody, &rt, &rid)
 	}
 	h.logAudit(c, "comment.create", "document", doc.ID)
 	c.JSON(http.StatusCreated, comment)
