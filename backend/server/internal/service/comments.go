@@ -100,6 +100,21 @@ func (s *CommentService) Delete(ctx context.Context, commentID, userID string, i
 	return s.db.WithContext(ctx).Delete(&c).Error
 }
 
+func (s *CommentService) SuggestMentionUsers(ctx context.Context, q string, limit int) ([]models.User, error) {
+	if limit <= 0 || limit > 20 {
+		limit = 10
+	}
+	q = strings.TrimSpace(q)
+	var users []models.User
+	db := s.db.WithContext(ctx).Where("is_active = ?", true)
+	if q != "" {
+		like := "%" + q + "%"
+		db = db.Where("email ILIKE ? OR display_name ILIKE ?", like, like)
+	}
+	err := db.Order("display_name ASC, email ASC").Limit(limit).Find(&users).Error
+	return users, err
+}
+
 func (s *CommentService) parseMentions(ctx context.Context, body string) []string {
 	seen := map[string]struct{}{}
 	var ids []string

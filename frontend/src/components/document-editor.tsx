@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Eye, GitPullRequest, Loader2, Save } from "lucide-react";
 import { MarkdownRenderer } from "@/components/markdown-renderer";
 import { MarkdownEditor } from "@/components/markdown-editor";
+import { ArticleEditor } from "@/components/article-editor";
 import { PublishPRDialog, type PublishPRInput } from "@/components/publish-pr-dialog";
 import { useI18n } from "@/lib/i18n";
 import type { LinkDoc } from "@/lib/wiki-markdown";
@@ -54,6 +55,8 @@ export function DocumentEditor({
   const { t } = useI18n();
   const [preview, setPreview] = useState(false);
   const [prOpen, setPrOpen] = useState(false);
+  const isMarkdownPath = path.toLowerCase().endsWith(".md");
+  const [format, setFormat] = useState<"markdown" | "article">(isMarkdownPath ? "markdown" : "article");
 
   return (
     <div className="space-y-4">
@@ -117,6 +120,24 @@ export function DocumentEditor({
         placeholder={t("document.titlePlaceholder")}
       />
       <p className="text-xs text-subtle">{path}</p>
+      {!preview && (
+        <div className="flex gap-2">
+          <button
+            type="button"
+            className={format === "markdown" ? "btn-primary !py-1 !text-xs" : "btn-secondary !py-1 !text-xs"}
+            onClick={() => setFormat("markdown")}
+          >
+            {t("documentEditor.formatMarkdown")}
+          </button>
+          <button
+            type="button"
+            className={format === "article" ? "btn-primary !py-1 !text-xs" : "btn-secondary !py-1 !text-xs"}
+            onClick={() => setFormat("article")}
+          >
+            {t("documentEditor.formatArticle")}
+          </button>
+        </div>
+      )}
       {preview ? (
         <div className="glass min-h-[20rem] p-6">
           <MarkdownRenderer
@@ -126,6 +147,12 @@ export function DocumentEditor({
             docPath={path}
           />
         </div>
+      ) : format === "article" ? (
+        <ArticleEditor
+          value={content}
+          onChange={onContentChange}
+          ariaLabel={t("document.contentLabel")}
+        />
       ) : (
         <MarkdownEditor
           value={content}

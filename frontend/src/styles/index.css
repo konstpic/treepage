@@ -426,3 +426,20 @@ body {
 .editor-context-menu__item:disabled {
   @apply opacity-40;
 }
+
+.product-tour {
+  @apply fixed inset-0 z-[12000];
+}
+
+.product-tour__backdrop {
+  @apply absolute inset-0 bg-black/55 backdrop-blur-sm;
+}
+
+.product-tour__spotlight {
+  @apply pointer-events-none absolute rounded-xl ring-4 ring-primary/70;
+  box-shadow: 0 0 0 9999px rgb(0 0 0 / 0.55);
+}
+
+.product-tour__card {
+  @apply absolute z-10 w-80 max-w-[calc(100vw-2rem)] rounded-2xl border border-default bg-surface p-4 shadow-2xl;
+}

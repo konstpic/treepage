@@ -54,13 +54,13 @@ export function AdminOIDCPage() {
       setRedirectUrl("");
       setError("");
     },
-    onError: (e) => setError(e instanceof ApiError ? e.message : "Failed"),
+    onError: (e) => setError(e instanceof ApiError ? e.message : t("admin.oidcForm.failed")),
   });
 
   const remove = useMutation({
     mutationFn: (id: string) => api(`/api/admin/oidc-providers/${id}`, { method: "DELETE" }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-oidc"] }),
-    onError: (e) => setError(e instanceof ApiError ? e.message : "Failed"),
+    onError: (e) => setError(e instanceof ApiError ? e.message : t("admin.oidcForm.failed")),
   });
 
   if (!ready) return null;
@@ -95,8 +95,11 @@ export function AdminOIDCPage() {
                     <p className="mt-2 text-xs text-muted">{t("admin.oidcConfigHint")}</p>
                   )}
                   <p className="mt-1 text-xs text-subtle">
-                    Claims: {p.role_claim || "roles"} / {p.group_claim || "groups"}
-                    {p.sync_groups && " · sync groups"}
+                    {t("admin.oidcForm.claims", {
+                      role: p.role_claim || "roles",
+                      group: p.group_claim || "groups",
+                      sync: p.sync_groups ? t("admin.oidcForm.claimsSync") : "",
+                    })}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -107,7 +110,7 @@ export function AdminOIDCPage() {
                         : "badge badge-neutral"
                     }
                   >
-                    {p.enabled ? "enabled" : "disabled"}
+                    {p.enabled ? t("admin.oidcForm.enabled") : t("admin.oidcForm.disabled")}
                   </span>
                   <button
                     type="button"
@@ -129,7 +132,7 @@ export function AdminOIDCPage() {
       </div>
 
       <div className="glass mt-6 p-6">
-        <h2 className="text-lg font-semibold text-fg">Add Provider</h2>
+        <h2 className="text-lg font-semibold text-fg">{t("admin.oidcForm.addTitle")}</h2>
         <form
           className="mt-4 space-y-4"
           onSubmit={(e) => {
@@ -147,39 +150,39 @@ export function AdminOIDCPage() {
             });
           }}
         >
-          <input className="input-field" placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} required />
+          <input className="input-field" placeholder={t("admin.oidcForm.namePlaceholder")} value={name} onChange={(e) => setName(e.target.value)} required />
           <input
             className="input-field"
-            placeholder="Issuer URL"
+            placeholder={t("admin.oidcForm.issuerPlaceholder")}
             value={issuerUrl}
             onChange={(e) => setIssuerUrl(e.target.value)}
             required
           />
           <input
             className="input-field"
-            placeholder="Client ID"
+            placeholder={t("admin.oidcForm.clientIdPlaceholder")}
             value={clientId}
             onChange={(e) => setClientId(e.target.value)}
             required
           />
           <input
             className="input-field"
-            placeholder="Redirect URL"
+            placeholder={t("admin.oidcForm.redirectPlaceholder")}
             value={redirectUrl}
             onChange={(e) => setRedirectUrl(e.target.value)}
             required
           />
-          <input className="input-field" placeholder="Scopes" value={scopes} onChange={(e) => setScopes(e.target.value)} />
+          <input className="input-field" placeholder={t("admin.oidcForm.scopesPlaceholder")} value={scopes} onChange={(e) => setScopes(e.target.value)} />
           <div className="grid gap-4 sm:grid-cols-2">
             <input
               className="input-field"
-              placeholder="Role claim (e.g. roles)"
+              placeholder={t("admin.oidcForm.roleClaimPlaceholder")}
               value={roleClaim}
               onChange={(e) => setRoleClaim(e.target.value)}
             />
             <input
               className="input-field"
-              placeholder="Group claim (e.g. groups)"
+              placeholder={t("admin.oidcForm.groupClaimPlaceholder")}
               value={groupClaim}
               onChange={(e) => setGroupClaim(e.target.value)}
             />
@@ -191,11 +194,11 @@ export function AdminOIDCPage() {
               onChange={(e) => setSyncGroups(e.target.checked)}
               className="checkbox-field"
             />
-            Sync IdP groups to TreePage groups on login
+            {t("admin.oidcForm.syncGroups")}
           </label>
           {error && <p className="text-sm text-danger-soft">{error}</p>}
           <button type="submit" className="btn-primary" disabled={create.isPending}>
-            {create.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Add Provider"}
+            {create.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : t("admin.oidcForm.add")}
           </button>
         </form>
       </div>

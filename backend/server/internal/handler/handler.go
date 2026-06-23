@@ -114,6 +114,7 @@ func (h *Handler) Register(r *gin.Engine) {
 		apiAuth.POST("/notifications/:id/read", h.MarkNotificationRead)
 		apiAuth.POST("/notifications/read-all", h.MarkAllNotificationsRead)
 		apiAuth.POST("/documents/:id/publish-workflow", h.PublishDocumentWorkflow)
+		apiAuth.GET("/users/mention-suggest", h.MentionUserSuggest)
 		apiAuth.GET("/documents/:id/comments", h.ListDocumentComments)
 		apiAuth.POST("/documents/:id/comments", h.CreateDocumentComment)
 		apiAuth.DELETE("/comments/:id", h.DeleteComment)

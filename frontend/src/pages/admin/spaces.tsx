@@ -119,7 +119,7 @@ export function AdminSpacesPage() {
       setIsPublic(false);
       setError("");
     },
-    onError: (e) => setError(e instanceof ApiError ? e.message : "Failed"),
+    onError: (e) => setError(e instanceof ApiError ? e.message : t("admin.spaces.failed")),
   });
 
   const updateSpace = useMutation({
@@ -137,7 +137,7 @@ export function AdminSpacesPage() {
       qc.invalidateQueries({ queryKey: ["spaces"] });
       setError("");
     },
-    onError: (e) => setError(e instanceof ApiError ? e.message : "Failed to update space"),
+    onError: (e) => setError(e instanceof ApiError ? e.message : t("admin.spaces.updateFailed")),
   });
 
   const unbindRepo = useMutation({
@@ -151,7 +151,7 @@ export function AdminSpacesPage() {
     },
     onError: (e) => {
       setRemovingRepoId(null);
-      setError(e instanceof ApiError ? e.message : "Failed to remove repository");
+      setError(e instanceof ApiError ? e.message : t("admin.spaces.removeRepoFailed"));
     },
   });
 
@@ -217,7 +217,7 @@ export function AdminSpacesPage() {
   function confirmRemoveRepo(repo: SpaceRepository) {
     if (!editingId) return;
     const ok = window.confirm(
-      `Remove "${repo.name}" from this space?\n\nSynced documents from this repository will be deleted.`,
+      t("admin.spaces.removeRepoConfirm", { name: repo.name }),
     );
     if (!ok) return;
     setRemovingRepoId(repo.id);
@@ -269,10 +269,10 @@ export function AdminSpacesPage() {
         <div className="glass mb-6 p-6 ring-1 ring-brand-500/20">
           <div className="mb-4 flex items-center justify-between">
             <div>
-              <h2 className="text-lg font-semibold text-fg">Edit Space</h2>
+              <h2 className="text-lg font-semibold text-fg">{t("admin.spaces.editTitle")}</h2>
               <p className="text-xs text-subtle">/{editingSpace.slug}</p>
             </div>
-            <button type="button" className="btn-ghost !px-2" onClick={closeEdit} aria-label="Close editor">
+            <button type="button" className="btn-ghost !px-2" onClick={closeEdit} aria-label={t("admin.spaces.closeEditor")}>
               <X className="h-4 w-4" />
             </button>
           </div>
@@ -285,14 +285,14 @@ export function AdminSpacesPage() {
           >
             <input
               className="input-field"
-              placeholder="Display name"
+              placeholder={t("admin.spaces.namePlaceholder")}
               value={editForm.name}
               onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
               required
             />
             <input
               className="input-field"
-              placeholder="Description (optional)"
+              placeholder={t("admin.spaces.descriptionPlaceholder")}
               value={editForm.description}
               onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
             />
@@ -304,15 +304,15 @@ export function AdminSpacesPage() {
                 onChange={(e) => setEditForm({ ...editForm, is_public: e.target.checked })}
                 className="checkbox-field"
               />
-              Publish as public (readable without sign-in)
+              {t("admin.spaces.publishPublic")}
             </label>
             {error && editingId && <p className="text-sm text-danger-soft">{error}</p>}
             <div className="flex flex-wrap gap-3">
               <button type="submit" className="btn-primary" disabled={updateSpace.isPending}>
-                {updateSpace.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save Changes"}
+                {updateSpace.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : t("admin.spaces.saveChanges")}
               </button>
               <button type="button" className="btn-secondary" onClick={closeEdit}>
-                Cancel
+                {t("common.cancel")}
               </button>
             </div>
           </form>
@@ -495,10 +495,8 @@ export function AdminSpacesPage() {
           </div>
 
           <div className="mt-8 border-t border-default pt-6">
-            <h3 className="text-sm font-semibold text-fg">Linked Repositories</h3>
-            <p className="mt-1 text-xs text-muted">
-              Removing a repository deletes its synced documents from this space.
-            </p>
+            <h3 className="text-sm font-semibold text-fg">{t("admin.spaces.linkedRepos")}</h3>
+            <p className="mt-1 text-xs text-muted">{t("admin.spaces.linkedReposHint")}</p>
             {reposLoading ? (
               <div className="flex justify-center py-8">
                 <Loader2 className="h-5 w-5 animate-spin text-primary" />
@@ -522,7 +520,7 @@ export function AdminSpacesPage() {
                       className="btn-ghost text-danger-soft !px-2"
                       disabled={removingRepoId === repo.id}
                       onClick={() => confirmRemoveRepo(repo)}
-                      aria-label={`Remove ${repo.name}`}
+                      aria-label={t("admin.spaces.removeRepo")}
                     >
                       {removingRepoId === repo.id ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
@@ -533,7 +531,7 @@ export function AdminSpacesPage() {
                   </div>
                 ))}
                 {spaceRepos?.items.length === 0 && (
-                  <p className="text-sm text-subtle">No repositories linked to this space.</p>
+                  <p className="text-sm text-subtle">{t("admin.spaces.noRepos")}</p>
                 )}
               </div>
             )}
@@ -543,10 +541,8 @@ export function AdminSpacesPage() {
       )}
 
       <div className="glass p-6">
-        <h2 className="text-lg font-semibold text-fg">Spaces</h2>
-        <p className="mt-1 text-sm text-muted">
-          Documentation spaces backed by Git repositories. Public spaces are readable without sign-in.
-        </p>
+        <h2 className="text-lg font-semibold text-fg">{t("admin.spaces.title")}</h2>
+        <p className="mt-1 text-sm text-muted">{t("admin.spaces.subtitle")}</p>
 
         {isLoading ? (
           <div className="flex justify-center py-12">
@@ -570,28 +566,28 @@ export function AdminSpacesPage() {
                   {space.is_public && (
                     <span className="badge badge-primary">
                       <Globe className="mr-1 inline h-3 w-3" />
-                      Public
+                      {t("common.public")}
                     </span>
                   )}
                   <button
                     type="button"
                     className="btn-ghost !px-2"
                     onClick={() => startEdit(space)}
-                    aria-label={`Edit ${space.name}`}
+                    aria-label={t("admin.spaces.editSpace", { name: space.name })}
                   >
                     <Pencil className="h-4 w-4" />
                   </button>
                 </div>
               </div>
             ))}
-            {data?.items.length === 0 && <p className="text-sm text-subtle">No spaces yet.</p>}
+            {data?.items.length === 0 && <p className="text-sm text-subtle">{t("admin.spaces.noSpaces")}</p>}
           </div>
         )}
         {error && !editingId && <p className="mt-4 text-sm text-danger-soft">{error}</p>}
       </div>
 
       <div className="glass mt-6 p-6">
-        <h2 className="text-lg font-semibold text-fg">Create Space</h2>
+        <h2 className="text-lg font-semibold text-fg">{t("admin.spaces.createTitle")}</h2>
         <form
           className="mt-4 space-y-4"
           onSubmit={(e) => {
@@ -606,21 +602,21 @@ export function AdminSpacesPage() {
         >
           <input
             className="input-field"
-            placeholder="Slug (e.g. engineering)"
+            placeholder={t("admin.spaces.slugPlaceholder")}
             value={slug}
             onChange={(e) => setSlug(e.target.value)}
             required
           />
           <input
             className="input-field"
-            placeholder="Display name"
+            placeholder={t("admin.spaces.namePlaceholder")}
             value={name}
             onChange={(e) => setName(e.target.value)}
             required
           />
           <input
             className="input-field"
-            placeholder="Description (optional)"
+            placeholder={t("admin.spaces.descriptionPlaceholder")}
             value={description}
             onChange={(e) => setDescription(e.target.value)}
           />
@@ -631,11 +627,11 @@ export function AdminSpacesPage() {
               onChange={(e) => setIsPublic(e.target.checked)}
               className="checkbox-field"
             />
-            Publish as public (readable without sign-in)
+            {t("admin.spaces.publishPublic")}
           </label>
           {error && !editingId && <p className="text-sm text-danger-soft">{error}</p>}
           <button type="submit" className="btn-primary" disabled={createSpace.isPending}>
-            {createSpace.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Create Space"}
+            {createSpace.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : t("admin.spaces.create")}
           </button>
         </form>
       </div>

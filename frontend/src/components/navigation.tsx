@@ -3,6 +3,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X, LogOut, User, ChevronRight, Search } from "lucide-react";
 import { NotificationsBell } from "@/components/notifications-bell";
+import { ProductTourTrigger } from "@/components/product-tour";
 import { TreePageLogo } from "@/components/treepage-logo";
 import { useAuthStore, useBrandingStore } from "@/lib/store";
 import { useI18n } from "@/lib/i18n";
@@ -52,6 +53,7 @@ export function Navigation() {
             <Link
               key={link.href}
               to={link.href}
+              data-tour={`nav-${link.href.replace("/", "") || "home"}`}
               className={cn(
                 "nav-link",
                 location.pathname.startsWith(link.href) && "nav-link-active"
@@ -63,13 +65,14 @@ export function Navigation() {
         </nav>
 
         <div className="hidden items-center gap-2 sm:flex">
-          <Link to="/search" className="btn-ghost">
+          <Link to="/search" className="btn-ghost" data-tour="nav-search">
             <Search className="h-4 w-4" />
           </Link>
           {isHydrated && isAuthenticated ? (
             <>
               <NotificationsBell />
-              <Link to="/me" className="btn-ghost">
+              <ProductTourTrigger />
+              <Link to="/me" className="btn-ghost" data-tour="nav-me">
                 <User className="h-4 w-4" />
                 {user?.display_name || t("common.account")}
               </Link>

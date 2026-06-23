@@ -6,6 +6,7 @@ import { TREE_LOGO_DRAW_MS } from "@/components/treepage-logo";
 import { useAuthStore } from "@/lib/store";
 import { useThemeStore } from "@/lib/theme-store";
 import { useLocaleStore } from "@/lib/locale-store";
+import { ProductTourOverlay } from "@/components/product-tour";
 import {
   useSplashStore,
   shouldShowInitialSplash,
@@ -70,6 +71,7 @@ export function AppBootstrap({ children }: { children: ReactNode }) {
       <AnimatePresence>
         {showSplash && <SplashScreen key={splashKey} />}
       </AnimatePresence>
+      <ProductTourOverlay />
     </>
   );
 }

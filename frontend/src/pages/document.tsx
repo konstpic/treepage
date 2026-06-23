@@ -338,16 +338,20 @@ export function DocumentPage() {
             />
           </>
         ) : (
-          <>
-            <MarkdownRenderer
-              content={doc.content}
-              spaceSlug={slug}
-              documents={allDocs?.items ?? []}
-              docPath={doc.path}
-            />
-            <DocumentAttachments documentId={doc.id} canEdit={canEdit} />
-            <DocumentComments documentId={doc.id} />
-          </>
+          <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start lg:gap-6">
+            <div className="min-w-0">
+              <MarkdownRenderer
+                content={doc.content}
+                spaceSlug={slug}
+                documents={allDocs?.items ?? []}
+                docPath={doc.path}
+              />
+              <DocumentAttachments documentId={doc.id} canEdit={canEdit} />
+            </div>
+            {isAuthenticated && (
+              <DocumentComments documentId={doc.id} variant="sidebar" className="mt-8 lg:mt-0" />
+            )}
+          </div>
         )}
       </article>
     </FadeIn>

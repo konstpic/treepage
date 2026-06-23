@@ -5,6 +5,7 @@ import { api, ApiError } from "@/lib/api";
 import { FadeIn } from "@/components/motion-wrapper";
 import { SelectField } from "@/components/select-field";
 import { formatDate } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n";
 import { useAdminGuard } from "./layout";
 
 interface Space {
@@ -102,6 +103,7 @@ function RepositoryFormFields({
   spaces?: Space[];
   tokenHint?: string;
 }) {
+  const { t } = useI18n();
   return (
     <>
       {spaces && (
@@ -111,7 +113,7 @@ function RepositoryFormFields({
           onChange={(e) => setForm({ ...form, space_id: e.target.value })}
           required
         >
-          <option value="">Select space</option>
+          <option value="">{t("admin.repositories.selectSpace")}</option>
           {spaces.map((s) => (
             <option key={s.id} value={s.id}>
               {s.name} ({s.slug})
@@ -121,20 +123,20 @@ function RepositoryFormFields({
       )}
       <input
         className="input-field"
-        placeholder="Name"
+        placeholder={t("admin.repositories.namePlaceholder")}
         value={form.name}
         onChange={(e) => setForm({ ...form, name: e.target.value })}
         required
       />
       <input
         className="input-field"
-        placeholder="Branch"
+        placeholder={t("admin.repositories.branchPlaceholder")}
         value={form.branch}
         onChange={(e) => setForm({ ...form, branch: e.target.value })}
       />
       <input
         className="input-field sm:col-span-2"
-        placeholder="Git URL"
+        placeholder={t("admin.repositories.urlPlaceholder")}
         value={form.url}
         onChange={(e) => setForm({ ...form, url: e.target.value })}
         required
@@ -151,7 +153,7 @@ function RepositoryFormFields({
       </SelectField>
       <input
         className="input-field"
-        placeholder="Docs path"
+        placeholder={t("admin.repositories.docsPathPlaceholder")}
         value={form.docs_path}
         onChange={(e) => setForm({ ...form, docs_path: e.target.value })}
       />
@@ -169,19 +171,19 @@ function RepositoryFormFields({
         className="input-field"
         type="number"
         min={60}
-        placeholder="Sync interval (sec)"
+        placeholder={t("admin.repositories.syncIntervalPlaceholder")}
         value={form.sync_interval_seconds}
         onChange={(e) => setForm({ ...form, sync_interval_seconds: Number(e.target.value) || 300 })}
       />
       <input
         className="input-field sm:col-span-2"
-        placeholder={tokenHint || "Access token (env name or paste token)"}
+        placeholder={tokenHint || t("admin.repositories.tokenPlaceholder")}
         value={form.access_token_ref}
         onChange={(e) => setForm({ ...form, access_token_ref: e.target.value })}
       />
       <input
         className="input-field sm:col-span-2"
-        placeholder="Webhook secret ref (optional)"
+        placeholder={t("admin.repositories.webhookPlaceholder")}
         value={form.webhook_secret_ref}
         onChange={(e) => setForm({ ...form, webhook_secret_ref: e.target.value })}
       />
@@ -192,7 +194,7 @@ function RepositoryFormFields({
           onChange={(e) => setForm({ ...form, enabled: e.target.checked })}
           className="checkbox-field"
         />
-        <span>Repository enabled</span>
+        <span>{t("admin.repositories.repoEnabled")}</span>
       </label>
     </>
   );
@@ -200,6 +202,7 @@ function RepositoryFormFields({
 
 export function AdminRepositoriesPage() {
   const { ready } = useAdminGuard();
+  const { t } = useI18n();
   const qc = useQueryClient();
   const [error, setError] = useState("");
   const [syncingId, setSyncingId] = useState<string | null>(null);
@@ -239,7 +242,7 @@ export function AdminRepositoriesPage() {
       setCreateForm(emptyForm());
       setError("");
     },
-    onError: (e) => setError(e instanceof ApiError ? e.message : "Failed"),
+    onError: (e) => setError(e instanceof ApiError ? e.message : t("admin.repositories.failed")),
   });
 
   const updateRepo = useMutation({
@@ -270,7 +273,7 @@ export function AdminRepositoriesPage() {
       setEditingId(null);
       setError("");
     },
-    onError: (e) => setError(e instanceof ApiError ? e.message : "Failed to save"),
+    onError: (e) => setError(e instanceof ApiError ? e.message : t("admin.repositories.saveFailed")),
   });
 
   async function triggerSync(repoId: string) {
@@ -280,7 +283,7 @@ export function AdminRepositoriesPage() {
       await api(`/api/admin/sync/${repoId}`, { method: "POST" });
       qc.invalidateQueries({ queryKey: ["admin-repositories"] });
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : "Sync failed");
+      setError(e instanceof ApiError ? e.message : t("admin.repositories.syncFailed"));
     } finally {
       setSyncingId(null);
     }
@@ -288,7 +291,7 @@ export function AdminRepositoriesPage() {
 
   async function removeFromSpace(repo: Repository) {
     const ok = window.confirm(
-      `Remove "${repo.name}" from space "${repo.space_name}"?\n\nSynced documents from this repository will be deleted.`,
+      t("admin.repositories.removeFromSpaceConfirm", { name: repo.name, space: repo.space_name }),
     );
     if (!ok) return;
     setRemovingId(repo.id);
@@ -299,7 +302,7 @@ export function AdminRepositoriesPage() {
       qc.invalidateQueries({ queryKey: ["admin-space-repos"] });
       if (editingId === repo.id) setEditingId(null);
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : "Failed to remove repository");
+      setError(e instanceof ApiError ? e.message : t("admin.repositories.removeFailed"));
     } finally {
       setRemovingId(null);
     }
@@ -319,12 +322,12 @@ export function AdminRepositoriesPage() {
       {editingId && (
         <div className="glass mb-6 p-6 ring-1 ring-brand-500/20">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-fg">Edit Repository</h2>
+            <h2 className="text-lg font-semibold text-fg">{t("admin.repositories.editTitle")}</h2>
             <button
               type="button"
               className="btn-ghost !px-2"
               onClick={() => setEditingId(null)}
-              aria-label="Close editor"
+              aria-label={t("admin.repositories.closeEditor")}
             >
               <X className="h-4 w-4" />
             </button>
@@ -340,15 +343,15 @@ export function AdminRepositoriesPage() {
               form={editForm}
               setForm={setEditForm}
               spaces={spaces?.items}
-              tokenHint="Access token — leave as-is or paste new value"
+              tokenHint={t("admin.repositories.tokenEditHint")}
             />
             {error && editingId && <p className="text-sm text-danger-soft sm:col-span-2">{error}</p>}
             <div className="flex flex-wrap gap-3 sm:col-span-2">
               <button type="submit" className="btn-primary" disabled={updateRepo.isPending}>
-                {updateRepo.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save Changes"}
+                {updateRepo.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : t("admin.repositories.saveChanges")}
               </button>
               <button type="button" className="btn-secondary" onClick={() => setEditingId(null)}>
-                Cancel
+                {t("common.cancel")}
               </button>
               <button
                 type="button"
@@ -361,7 +364,7 @@ export function AdminRepositoriesPage() {
                 ) : (
                   <RefreshCw className="h-4 w-4" />
                 )}
-                Sync now
+                {t("admin.repositories.syncNow")}
               </button>
               <button
                 type="button"
@@ -377,7 +380,7 @@ export function AdminRepositoriesPage() {
                 ) : (
                   <Trash2 className="h-4 w-4" />
                 )}
-                Remove from space
+                {t("admin.repositories.removeFromSpace")}
               </button>
             </div>
           </form>
@@ -385,8 +388,8 @@ export function AdminRepositoriesPage() {
       )}
 
       <div className="glass p-6">
-        <h2 className="text-lg font-semibold text-fg">Repositories</h2>
-        <p className="mt-1 text-sm text-muted">Git sources linked to documentation spaces</p>
+        <h2 className="text-lg font-semibold text-fg">{t("admin.repositories.title")}</h2>
+        <p className="mt-1 text-sm text-muted">{t("admin.repositories.subtitle")}</p>
 
         {isLoading ? (
           <div className="flex justify-center py-12">
@@ -397,12 +400,12 @@ export function AdminRepositoriesPage() {
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="border-b border-default text-subtle">
-                  <th className="pb-3 pr-4 font-medium">Name</th>
-                  <th className="pb-3 pr-4 font-medium">Space</th>
-                  <th className="pb-3 pr-4 font-medium">Branch</th>
-                  <th className="pb-3 pr-4 font-medium">Sync</th>
-                  <th className="pb-3 pr-4 font-medium">Status</th>
-                  <th className="pb-3 font-medium">Actions</th>
+                  <th className="pb-3 pr-4 font-medium">{t("admin.repositories.colName")}</th>
+                  <th className="pb-3 pr-4 font-medium">{t("admin.repositories.colSpace")}</th>
+                  <th className="pb-3 pr-4 font-medium">{t("admin.repositories.colBranch")}</th>
+                  <th className="pb-3 pr-4 font-medium">{t("admin.repositories.colSync")}</th>
+                  <th className="pb-3 pr-4 font-medium">{t("admin.repositories.colStatus")}</th>
+                  <th className="pb-3 font-medium">{t("admin.repositories.colActions")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -421,7 +424,7 @@ export function AdminRepositoriesPage() {
                     <td className="py-3 pr-4 text-muted">{repo.sync_mode}</td>
                     <td className="py-3 pr-4">
                       <span className={syncStatusClass(repo.last_sync_status)}>
-                        {repo.last_sync_status || "never"}
+                        {repo.last_sync_status || t("admin.repositories.syncStatusNever")}
                       </span>
                       {repo.last_sync_at && (
                         <p className="mt-1 text-xs text-subtle">{formatDate(repo.last_sync_at)}</p>
@@ -438,7 +441,7 @@ export function AdminRepositoriesPage() {
                           type="button"
                           className="btn-ghost !px-2"
                           onClick={() => startEdit(repo)}
-                          aria-label={`Edit ${repo.name}`}
+                          aria-label={t("admin.repositories.editTitle")}
                         >
                           <Pencil className="h-4 w-4" />
                         </button>
@@ -447,7 +450,7 @@ export function AdminRepositoriesPage() {
                           className="btn-ghost !px-2"
                           disabled={syncingId === repo.id}
                           onClick={() => triggerSync(repo.id)}
-                          aria-label={`Sync ${repo.name}`}
+                          aria-label={t("admin.repositories.syncNow")}
                         >
                           {syncingId === repo.id ? (
                             <Loader2 className="h-4 w-4 animate-spin" />
@@ -460,7 +463,7 @@ export function AdminRepositoriesPage() {
                           className="btn-ghost !px-2 text-danger-soft"
                           disabled={removingId === repo.id}
                           onClick={() => removeFromSpace(repo)}
-                          aria-label={`Remove ${repo.name} from space`}
+                          aria-label={t("admin.repositories.removeFromSpace")}
                         >
                           {removingId === repo.id ? (
                             <Loader2 className="h-4 w-4 animate-spin" />
@@ -475,7 +478,7 @@ export function AdminRepositoriesPage() {
               </tbody>
             </table>
             {repos?.items.length === 0 && (
-              <p className="py-6 text-sm text-subtle">No repositories configured.</p>
+              <p className="py-6 text-sm text-subtle">{t("admin.repositories.noRepos")}</p>
             )}
           </div>
         )}
@@ -483,7 +486,7 @@ export function AdminRepositoriesPage() {
       </div>
 
       <div className="glass mt-6 p-6">
-        <h2 className="text-lg font-semibold text-fg">Create Repository</h2>
+        <h2 className="text-lg font-semibold text-fg">{t("admin.repositories.createTitle")}</h2>
         <form
           className="mt-4 grid gap-4 sm:grid-cols-2"
           onSubmit={(e) => {
@@ -505,7 +508,7 @@ export function AdminRepositoriesPage() {
           <RepositoryFormFields form={createForm} setForm={setCreateForm} spaces={spaces?.items} />
           {error && !editingId && <p className="text-sm text-danger-soft sm:col-span-2">{error}</p>}
           <button type="submit" className="btn-primary sm:col-span-2" disabled={createRepo.isPending}>
-            {createRepo.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Create Repository"}
+            {createRepo.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : t("admin.repositories.create")}
           </button>
         </form>
       </div>

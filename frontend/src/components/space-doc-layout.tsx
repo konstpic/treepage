@@ -310,12 +310,14 @@ export function SpaceDocLayout() {
                     )}
                   </div>
                 )}
+              <div data-tour="doc-tree">
                 <DocumentTree
                   spaceSlug={slug!}
                   documents={docs?.items ?? []}
                   activeSlug={docSlug}
                   activePath={activeDoc?.path}
                 />
+              </div>
               </>
             )}
           </aside>

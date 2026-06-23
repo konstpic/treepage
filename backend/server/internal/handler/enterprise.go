@@ -72,6 +72,28 @@ func (h *Handler) DeletePageACLRule(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
 
+func (h *Handler) MentionUserSuggest(c *gin.Context) {
+	if c.GetString("userID") == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+	users, err := h.comments.SuggestMentionUsers(c.Request.Context(), c.Query("q"), 12)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	type row struct {
+		ID          string `json:"id"`
+		Email       string `json:"email"`
+		DisplayName string `json:"display_name"`
+	}
+	out := make([]row, 0, len(users))
+	for _, u := range users {
+		out = append(out, row{ID: u.ID, Email: u.Email, DisplayName: u.DisplayName})
+	}
+	c.JSON(http.StatusOK, gin.H{"items": out})
+}
+
 func (h *Handler) ListDocumentComments(c *gin.Context) {
 	doc, err := h.docs.GetByID(c.Request.Context(), c.Param("id"))
 	if err != nil {
