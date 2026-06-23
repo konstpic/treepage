@@ -14,8 +14,43 @@ interface Comment {
   author_id?: string;
   author_name?: string;
   body: string;
+  mention_labels?: { email: string; display_name: string }[];
   created_at: string;
   replies?: Comment[];
+}
+
+const mentionInBodyRe = /@([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+)/g;
+
+function CommentBody({
+  body,
+  mentionLabels,
+}: {
+  body: string;
+  mentionLabels?: Comment["mention_labels"];
+}) {
+  const nameByEmail = new Map(
+    (mentionLabels ?? []).map((l) => [l.email.toLowerCase(), l.display_name || l.email]),
+  );
+
+  const parts: React.ReactNode[] = [];
+  let last = 0;
+  let match: RegExpExecArray | null;
+  const re = new RegExp(mentionInBodyRe);
+  while ((match = re.exec(body)) !== null) {
+    const idx = match.index;
+    if (idx > last) parts.push(body.slice(last, idx));
+    const email = match[1];
+    const label = nameByEmail.get(email.toLowerCase()) ?? email;
+    parts.push(
+      <span key={`${idx}-${email}`} className="font-medium text-primary">
+        @{label}
+      </span>,
+    );
+    last = idx + match[0].length;
+  }
+  if (last < body.length) parts.push(body.slice(last));
+  if (parts.length === 0) return <>{body}</>;
+  return <>{parts}</>;
 }
 
 interface DocumentCommentsProps {
@@ -77,7 +112,9 @@ export function DocumentComments({ documentId, variant = "inline", className }: 
             <span className="font-medium text-fg">{c.author_name || t("comments.anonymous")}</span>
             <span className="text-xs text-subtle">{formatDate(c.created_at)}</span>
           </div>
-          <p className="mt-1 whitespace-pre-wrap break-words text-fg">{c.body}</p>
+          <p className="mt-1 whitespace-pre-wrap break-words text-fg">
+            <CommentBody body={c.body} mentionLabels={c.mention_labels} />
+          </p>
         </div>
         {c.replies?.map((r) => renderComment(r, depth + 1))}
       </div>

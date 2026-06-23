@@ -334,7 +334,7 @@ type DocumentComment struct {
 	CreatedAt  time.Time      `json:"created_at"`
 	UpdatedAt  time.Time      `json:"updated_at"`
 	ResolvedAt *time.Time     `json:"resolved_at,omitempty"`
-	AuthorName string         `gorm:"-" json:"author_name,omitempty"`
+	AuthorName string         `gorm:"->;<-:false" json:"author_name,omitempty"`
 }
 
 func (DocumentComment) TableName() string { return "document_comments" }

@@ -29,15 +29,21 @@ func NewCommentService(db *gorm.DB) *CommentService {
 	return &CommentService{db: db}
 }
 
+type MentionLabel struct {
+	Email       string `json:"email"`
+	DisplayName string `json:"display_name"`
+}
+
 type CommentView struct {
 	models.DocumentComment
-	Replies []CommentView `json:"replies,omitempty"`
+	MentionLabels []MentionLabel `json:"mention_labels,omitempty"`
+	Replies       []CommentView  `json:"replies,omitempty"`
 }
 
 func (s *CommentService) ListThread(ctx context.Context, documentID string) ([]CommentView, error) {
 	var rows []models.DocumentComment
 	err := s.db.WithContext(ctx).Table("document_comments c").
-		Select("c.*, COALESCE(u.display_name, u.email, '') AS author_name").
+		Select("c.*, COALESCE(NULLIF(TRIM(u.display_name), ''), u.email, '') AS author_name").
 		Joins("LEFT JOIN users u ON u.id = c.author_id").
 		Where("c.document_id = ?", documentID).
 		Order("c.created_at ASC").
@@ -61,7 +67,80 @@ func (s *CommentService) ListThread(ctx context.Context, documentID string) ([]C
 			roots = append(roots, *cv)
 		}
 	}
+	for i := range roots {
+		s.enrichCommentView(ctx, &roots[i])
+	}
 	return roots, nil
+}
+
+func (s *CommentService) enrichCommentView(ctx context.Context, cv *CommentView) {
+	if cv.AuthorID != nil && *cv.AuthorID != "" && cv.AuthorName == "" {
+		cv.AuthorName, _ = s.authorDisplayName(ctx, *cv.AuthorID)
+	}
+	cv.MentionLabels = s.mentionLabelsForComment(ctx, cv.Body, []string(cv.Mentions))
+	for i := range cv.Replies {
+		s.enrichCommentView(ctx, &cv.Replies[i])
+	}
+}
+
+func (s *CommentService) authorDisplayName(ctx context.Context, userID string) (string, error) {
+	var user models.User
+	if err := s.db.WithContext(ctx).Select("email", "display_name").First(&user, "id = ?", userID).Error; err != nil {
+		return "", err
+	}
+	return displayNameOrEmail(user.DisplayName, user.Email), nil
+}
+
+func displayNameOrEmail(displayName, email string) string {
+	if strings.TrimSpace(displayName) != "" {
+		return strings.TrimSpace(displayName)
+	}
+	return email
+}
+
+func (s *CommentService) mentionLabels(ctx context.Context, userIDs []string) []MentionLabel {
+	if len(userIDs) == 0 {
+		return nil
+	}
+	var users []models.User
+	if err := s.db.WithContext(ctx).Select("email", "display_name").Where("id IN ?", userIDs).Find(&users).Error; err != nil {
+		return nil
+	}
+	labels := make([]MentionLabel, 0, len(users))
+	for _, u := range users {
+		labels = append(labels, MentionLabel{
+			Email:       u.Email,
+			DisplayName: displayNameOrEmail(u.DisplayName, u.Email),
+		})
+	}
+	return labels
+}
+
+func (s *CommentService) mentionLabelsForComment(ctx context.Context, body string, mentionIDs []string) []MentionLabel {
+	labels := s.mentionLabels(ctx, mentionIDs)
+	seen := map[string]struct{}{}
+	for _, l := range labels {
+		seen[strings.ToLower(l.Email)] = struct{}{}
+	}
+	for _, m := range mentionRe.FindAllStringSubmatch(body, -1) {
+		if len(m) < 2 {
+			continue
+		}
+		email := strings.ToLower(m[1])
+		if _, ok := seen[email]; ok {
+			continue
+		}
+		var user models.User
+		if err := s.db.WithContext(ctx).Where("LOWER(email) = ?", email).First(&user).Error; err != nil {
+			continue
+		}
+		labels = append(labels, MentionLabel{
+			Email:       user.Email,
+			DisplayName: displayNameOrEmail(user.DisplayName, user.Email),
+		})
+		seen[email] = struct{}{}
+	}
+	return labels
 }
 
 func (s *CommentService) Create(ctx context.Context, documentID, authorID, body string, parentID *string) (*models.DocumentComment, []string, error) {
@@ -78,6 +157,7 @@ func (s *CommentService) Create(ctx context.Context, documentID, authorID, body 
 	if err := s.db.WithContext(ctx).Create(&c).Error; err != nil {
 		return nil, nil, err
 	}
+	c.AuthorName, _ = s.authorDisplayName(ctx, authorID)
 	return &c, mentions, nil
 }
 
