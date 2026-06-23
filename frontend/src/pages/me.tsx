@@ -60,7 +60,7 @@ export function MePage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
+    <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6" data-tour="me-main">
       <FadeIn>
         <h1 className="text-2xl font-bold text-fg">{t("me.title")}</h1>
         <p className="mt-1 text-sm text-muted">{t("me.subtitle")}</p>

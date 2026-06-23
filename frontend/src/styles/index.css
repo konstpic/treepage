@@ -432,12 +432,11 @@ body {
 }
 
 .product-tour__backdrop {
-  @apply absolute inset-0 bg-black/55 backdrop-blur-sm;
+  @apply absolute inset-0 bg-black/55;
 }
 
 .product-tour__spotlight {
   @apply pointer-events-none absolute rounded-xl ring-4 ring-primary/70;
-  box-shadow: 0 0 0 9999px rgb(0 0 0 / 0.55);
 }
 
 .product-tour__card {

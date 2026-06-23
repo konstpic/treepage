@@ -346,7 +346,7 @@ export function SpacesPage() {
   if (!isHydrated) return null;
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+    <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6" data-tour="spaces-main">
       <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold gradient-text">{t("spaces.title")}</h1>

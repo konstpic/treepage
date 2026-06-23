@@ -155,7 +155,7 @@ export function SearchPage() {
   return (
     <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
       <FadeIn>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2" data-tour="search-main">
           <button type="button" className={cn("btn-secondary", mode === "search" && "!bg-primary !text-on-primary")} onClick={() => setMode("search")}>
             <Search className="h-4 w-4" />
             {t("search.title")}

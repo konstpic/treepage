@@ -1,40 +1,66 @@
 import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { GraduationCap, X } from "lucide-react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useOnboardingStore } from "@/lib/onboarding-store";
 import { useAuthStore } from "@/lib/store";
+import { useSplashStore } from "@/lib/splash-store";
 import { useI18n } from "@/lib/i18n";
+
+type TourStepTitleKey = keyof typeof import("@/lib/i18n/en").en.tour.steps;
 
 type TourStep = {
   id: string;
   selector: string;
-  titleKey: keyof typeof import("@/lib/i18n/en").en.tour.steps;
+  titleKey: TourStepTitleKey;
+  route?: string;
+  adminOnly?: boolean;
 };
 
-const MAIN_STEPS: TourStep[] = [
-  { id: "spaces", selector: '[data-tour="nav-spaces"]', titleKey: "navSpaces" },
-  { id: "search", selector: '[data-tour="nav-search"]', titleKey: "navSearch" },
-  { id: "account", selector: '[data-tour="nav-me"]', titleKey: "navAccount" },
-  { id: "admin", selector: '[data-tour="nav-admin"]', titleKey: "navAdmin" },
+/** Default doc for tree/comments steps (Welcome space). */
+const TOUR_DOC_ROUTE = "/spaces/welcome/docs/welcome";
+
+const TOUR_STEPS: TourStep[] = [
+  { id: "spaces-nav", selector: '[data-tour="nav-spaces"]', titleKey: "navSpaces", route: "/spaces" },
+  { id: "spaces-page", selector: '[data-tour="spaces-main"]', titleKey: "spacesSection", route: "/spaces" },
+  { id: "search-nav", selector: '[data-tour="nav-search"]', titleKey: "navSearch", route: "/search" },
+  { id: "search-page", selector: '[data-tour="search-main"]', titleKey: "searchSection", route: "/search" },
+  { id: "me-nav", selector: '[data-tour="nav-me"]', titleKey: "navAccount", route: "/me" },
+  { id: "me-page", selector: '[data-tour="me-main"]', titleKey: "meSection", route: "/me" },
+  {
+    id: "admin-nav",
+    selector: '[data-tour="nav-admin"]',
+    titleKey: "navAdmin",
+    route: "/admin/spaces",
+    adminOnly: true,
+  },
+  {
+    id: "admin-page",
+    selector: '[data-tour="admin-nav"]',
+    titleKey: "adminSection",
+    route: "/admin/spaces",
+    adminOnly: true,
+  },
+  { id: "doc-tree", selector: '[data-tour="doc-tree"]', titleKey: "docTree", route: TOUR_DOC_ROUTE },
+  { id: "doc-comments", selector: '[data-tour="doc-comments"]', titleKey: "docComments", route: TOUR_DOC_ROUTE },
 ];
 
-const DOC_STEPS: TourStep[] = [
-  { id: "tree", selector: '[data-tour="doc-tree"]', titleKey: "docTree" },
-  { id: "comments", selector: '[data-tour="doc-comments"]', titleKey: "docComments" },
-];
+function routeMatches(pathname: string, route: string): boolean {
+  return pathname === route || pathname.startsWith(`${route}/`);
+}
+
+function spotlightClipPath(spotlight: { top: number; left: number; width: number; height: number }): string {
+  const { top, left, width, height } = spotlight;
+  const x1 = Math.round(left);
+  const y1 = Math.round(top);
+  const x2 = Math.round(left + width);
+  const y2 = Math.round(top + height);
+  return `polygon(evenodd, 0 0, 100vw 0, 100vw 100vh, 0 100vh, 0 0, ${x1}px ${y1}px, ${x2}px ${y1}px, ${x2}px ${y2}px, ${x1}px ${y2}px, ${x1}px ${y1}px)`;
+}
 
 function useTourSteps(): TourStep[] {
-  const location = useLocation();
   const { user } = useAuthStore();
   const isAdmin = user?.roles.some((r) => ["super_admin", "admin"].includes(r)) ?? false;
-
-  return useMemo(() => {
-    const steps = MAIN_STEPS.filter((s) => s.id !== "admin" || isAdmin);
-    if (location.pathname.includes("/spaces/") && location.pathname.includes("/docs/")) {
-      return [...steps, ...DOC_STEPS];
-    }
-    return steps;
-  }, [location.pathname, isAdmin]);
+  return useMemo(() => TOUR_STEPS.filter((s) => !s.adminOnly || isAdmin), [isAdmin]);
 }
 
 export function ProductTourTrigger() {
@@ -60,7 +86,10 @@ export function ProductTourTrigger() {
 
 export function ProductTourOverlay() {
   const { t } = useI18n();
+  const navigate = useNavigate();
+  const location = useLocation();
   const { isAuthenticated } = useAuthStore();
+  const splashIdle = useSplashStore((s) => s.phase === "idle");
   const active = useOnboardingStore((s) => s.active);
   const step = useOnboardingStore((s) => s.step);
   const next = useOnboardingStore((s) => s.next);
@@ -73,35 +102,67 @@ export function ProductTourOverlay() {
   const steps = useTourSteps();
   const current = steps[step];
   const [rect, setRect] = useState<DOMRect | null>(null);
+  const [navReady, setNavReady] = useState(false);
 
   useEffect(() => {
-    if (!isAuthenticated || !shouldAutoStart()) return;
-    const timer = window.setTimeout(() => start(), 800);
+    if (!isAuthenticated || !shouldAutoStart() || !splashIdle) return;
+    const timer = window.setTimeout(() => start(), 500);
     return () => window.clearTimeout(timer);
-  }, [isAuthenticated, shouldAutoStart, start]);
+  }, [isAuthenticated, shouldAutoStart, start, splashIdle]);
+
+  useEffect(() => {
+    if (!active || !current?.route) {
+      setNavReady(true);
+      return;
+    }
+    setNavReady(false);
+    if (!routeMatches(location.pathname, current.route)) {
+      navigate(current.route);
+      return;
+    }
+    const timer = window.setTimeout(() => setNavReady(true), 120);
+    return () => window.clearTimeout(timer);
+  }, [active, current, location.pathname, navigate]);
 
   useLayoutEffect(() => {
-    if (!active || !current) {
+    if (!active || !current || !navReady) {
       setRect(null);
       return;
     }
-    const el = document.querySelector(current.selector);
-    if (!el) {
-      setRect(null);
-      return;
-    }
-    const update = () => setRect(el.getBoundingClientRect());
-    update();
-    el.scrollIntoView({ block: "nearest", behavior: "smooth" });
-    window.addEventListener("resize", update);
-    window.addEventListener("scroll", update, true);
-    return () => {
-      window.removeEventListener("resize", update);
-      window.removeEventListener("scroll", update, true);
-    };
-  }, [active, current, step]);
 
-  if (!active || !current) return null;
+    let cancelled = false;
+    let attempts = 0;
+
+    const measure = () => {
+      if (cancelled) return;
+      const el = document.querySelector(current.selector);
+      if (el) {
+        setRect(el.getBoundingClientRect());
+        el.scrollIntoView({ block: "nearest", behavior: "smooth" });
+        return;
+      }
+      if (attempts++ < 30) {
+        window.requestAnimationFrame(measure);
+      } else {
+        setRect(null);
+      }
+    };
+
+    measure();
+    const onResize = () => {
+      const el = document.querySelector(current.selector);
+      if (el) setRect(el.getBoundingClientRect());
+    };
+    window.addEventListener("resize", onResize);
+    window.addEventListener("scroll", onResize, true);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("resize", onResize);
+      window.removeEventListener("scroll", onResize, true);
+    };
+  }, [active, current, step, navReady, location.pathname]);
+
+  if (!active || !current || !splashIdle) return null;
 
   const stepText = t(`tour.steps.${current.titleKey}.title`);
   const bodyText = t(`tour.steps.${current.titleKey}.body`);
@@ -126,7 +187,12 @@ export function ProductTourOverlay() {
 
   return (
     <div className="product-tour" role="dialog" aria-modal="true" aria-label={stepText}>
-      <div className="product-tour__backdrop" onClick={skip} aria-hidden />
+      <div
+        className="product-tour__backdrop"
+        style={spotlight ? { clipPath: spotlightClipPath(spotlight) } : undefined}
+        onClick={skip}
+        aria-hidden
+      />
       {spotlight && (
         <div
           className="product-tour__spotlight"
@@ -138,7 +204,7 @@ export function ProductTourOverlay() {
           }}
         />
       )}
-      <div className="product-tour__card" style={cardStyle}>
+      <div className="product-tour__card" style={cardStyle} onClick={(e) => e.stopPropagation()}>
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-xs text-subtle">

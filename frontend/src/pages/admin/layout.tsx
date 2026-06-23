@@ -64,7 +64,7 @@ export function AdminLayout() {
 
       <div className="flex flex-col gap-8 lg:flex-row">
         <aside className="lg:w-56 shrink-0">
-          <nav className="glass flex flex-row gap-1 overflow-x-auto p-2 lg:flex-col">
+          <nav className="glass flex flex-row gap-1 overflow-x-auto p-2 lg:flex-col" data-tour="admin-nav">
             {links.map((item) => {
               const Icon = item.icon;
               const active = location.pathname === item.href || location.pathname.startsWith(`${item.href}/`);

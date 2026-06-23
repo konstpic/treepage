@@ -304,10 +304,26 @@ export const en = {
     finish: "Done",
     stepOf: "Step {current} of {total}",
     steps: {
-      navSpaces: { title: "Spaces", body: "Browse documentation collections synced from Git." },
-      navSearch: { title: "Search", body: "Full-text search across documents you can access." },
-      navAccount: { title: "Your account", body: "Favorites, recently viewed pages, and profile." },
-      navAdmin: { title: "Admin", body: "Manage spaces, repositories, users, and platform settings." },
+      navSpaces: { title: "Spaces", body: "Open the spaces catalog from the top navigation." },
+      spacesSection: {
+        title: "Spaces catalog",
+        body: "All documentation collections you can access. Public spaces are readable without sign-in.",
+      },
+      navSearch: { title: "Search", body: "Quick access to full-text search from the header." },
+      searchSection: {
+        title: "Search & filters",
+        body: "Find pages by keyword, space, author, or tags. Signed-in users can also use AI Q&A.",
+      },
+      navAccount: { title: "Your account", body: "Profile, favorites, and recently viewed pages." },
+      meSection: {
+        title: "My pages",
+        body: "Starred documents and your browsing history in one place.",
+      },
+      navAdmin: { title: "Admin", body: "Platform management for spaces, repos, users, and settings." },
+      adminSection: {
+        title: "Admin sections",
+        body: "Sidebar navigation: spaces, repositories, users, RAG, OIDC, and more.",
+      },
       docTree: { title: "Document tree", body: "Navigate pages in the current space. Public spaces work without sign-in." },
       docComments: { title: "Comments", body: "Discuss the page with your team. Type @ to mention someone." },
     },
