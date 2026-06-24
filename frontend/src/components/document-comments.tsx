@@ -58,11 +58,11 @@ function countComments(items: Comment[]): number {
 }
 
 function railWidthClass(count: number): string {
-  if (count === 0) return "lg:w-[13.5rem]";
-  if (count <= 2) return "lg:w-[16rem]";
-  if (count <= 5) return "lg:w-[19rem]";
-  if (count <= 10) return "lg:w-[22rem]";
-  return "lg:w-[25rem]";
+  if (count === 0) return "xl:w-[13.5rem]";
+  if (count <= 2) return "xl:w-[16rem]";
+  if (count <= 5) return "xl:w-[19rem]";
+  if (count <= 10) return "xl:w-[22rem]";
+  return "xl:w-[25rem]";
 }
 
 interface DocumentCommentsProps {
@@ -163,7 +163,7 @@ export function DocumentComments({ documentId, variant = "inline", className }: 
       className={cn(
         isRail
           ? cn(
-              "glass flex w-full flex-col rounded-xl p-3 transition-[width] duration-300 ease-out lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:shrink-0",
+              "glass flex w-full flex-col rounded-xl p-3 transition-[width] duration-300 ease-out xl:sticky xl:top-24 xl:max-h-[calc(100vh-7rem)] xl:shrink-0",
               railWidthClass(commentCount),
             )
           : "mt-8 border-t border-default pt-6",

@@ -1,18 +1,18 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useOutletContext } from "react-router-dom";
 import { Edit3, Languages, Loader2, Star, Trash2 } from "lucide-react";
 import { api, ApiError, optionalAuthApi } from "@/lib/api";
 import { MarkdownRenderer } from "@/components/markdown-renderer";
 import { DocumentSyncDiff } from "@/components/document-sync-diff";
 import { DocumentEditor } from "@/components/document-editor";
 import { DocumentAttachments } from "@/components/document-attachments";
-import { DocumentComments } from "@/components/document-comments";
 import type { PublishPRInput } from "@/components/publish-pr-dialog";
 import { DocBreadcrumbs } from "@/components/doc-breadcrumbs";
 import { DocumentHistory } from "@/components/document-history";
 import { FadeIn } from "@/components/motion-wrapper";
-import { formatDate, cn } from "@/lib/utils";
+import { formatDate } from "@/lib/utils";
+import type { SpaceDocOutletContext } from "@/lib/space-doc-chrome";
 import { useAuthStore } from "@/lib/store";
 import { useI18n } from "@/lib/i18n";
 
@@ -56,6 +56,7 @@ export function DocumentPage() {
   const navigate = useNavigate();
   const { t, localeId } = useI18n();
   const { isAuthenticated } = useAuthStore();
+  const { setDocChrome } = useOutletContext<SpaceDocOutletContext>();
   const qc = useQueryClient();
   const [editing, setEditing] = useState(false);
   const [editTitle, setEditTitle] = useState("");
@@ -97,6 +98,15 @@ export function DocumentPage() {
   });
 
   const linkedRepo = repos?.items.find((r) => r.id === doc?.repository_id);
+
+  useEffect(() => {
+    if (!doc) return;
+    setDocChrome({
+      documentId: doc.id,
+      showComments: isAuthenticated && !editing,
+    });
+    return () => setDocChrome({ documentId: null, showComments: false });
+  }, [doc?.id, editing, isAuthenticated, setDocChrome]);
 
   const saveDoc = useMutation({
     mutationFn: (opts?: { draft?: boolean }) =>
@@ -220,8 +230,7 @@ export function DocumentPage() {
         docPath={doc.path}
         docTitle={doc.title}
       />
-      <div className={cn("flex flex-col gap-4", !editing && isAuthenticated && "lg:flex-row lg:items-start")}>
-        <article className="glass min-w-0 flex-1 p-6 sm:p-8">
+      <article className="glass p-6 sm:p-8">
         {doc.has_pending_changes && doc.repository_id && (
           <DocumentSyncDiff documentId={doc.id} />
         )}
@@ -349,11 +358,7 @@ export function DocumentPage() {
             <DocumentAttachments documentId={doc.id} canEdit={canEdit} />
           </>
         )}
-        </article>
-        {!editing && isAuthenticated && (
-          <DocumentComments documentId={doc.id} variant="rail" />
-        )}
-      </div>
+      </article>
     </FadeIn>
   );
 }

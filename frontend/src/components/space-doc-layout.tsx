@@ -1,16 +1,18 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, Outlet, useLocation, useParams } from "react-router-dom";
 import { BookOpen, ArrowLeft, FileText, GitBranch, Globe, Loader2, Plus, RefreshCw } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError, optionalAuthApi } from "@/lib/api";
 import { useAuthStore } from "@/lib/store";
 import { DocumentTree } from "@/components/document-tree";
+import { DocumentComments } from "@/components/document-comments";
 import { FadeIn } from "@/components/motion-wrapper";
 import { formatDate } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
 import { canManageBooks } from "@/lib/roles";
 import type { DocItem } from "@/lib/doc-tree";
+import { defaultSpaceDocChrome, type SpaceDocChrome } from "@/lib/space-doc-chrome";
 
 interface Space {
   id: string;
@@ -61,6 +63,11 @@ export function SpaceDocLayout() {
   const [newDocTitle, setNewDocTitle] = useState("");
   const [newDocPath, setNewDocPath] = useState("");
   const [createError, setCreateError] = useState("");
+  const [docChrome, setDocChrome] = useState<SpaceDocChrome>(defaultSpaceDocChrome);
+
+  useEffect(() => {
+    setDocChrome(defaultSpaceDocChrome);
+  }, [docSlug]);
 
   const { data: space } = useQuery({
     queryKey: ["space", slug],
@@ -123,7 +130,7 @@ export function SpaceDocLayout() {
   const booksTab = `/spaces/${slug}/books`;
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
+    <div className="mx-auto w-full max-w-[min(100%,100rem)] px-4 py-8 sm:px-6 lg:px-8 2xl:px-10">
       <FadeIn>
         <Link
           to="/spaces"
@@ -225,8 +232,8 @@ export function SpaceDocLayout() {
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
       ) : (
-        <div className="mt-6 flex flex-col gap-6 lg:flex-row lg:items-start">
-          <aside className="glass w-full shrink-0 p-3 lg:sticky lg:top-24 lg:w-72 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto">
+        <div className="mt-6 flex flex-col gap-6 xl:flex-row xl:items-start xl:gap-8">
+          <aside className="glass w-full shrink-0 p-3 xl:sticky xl:top-24 xl:w-64 xl:max-h-[calc(100vh-7rem)] xl:overflow-y-auto 2xl:w-72">
             {isBooks ? (
               <div className="space-y-1">
                 <p className="px-2 pb-2 text-xs font-semibold uppercase tracking-wide text-subtle">
@@ -323,8 +330,12 @@ export function SpaceDocLayout() {
           </aside>
 
           <div className="min-w-0 flex-1">
-            <Outlet />
+            <Outlet context={{ setDocChrome }} />
           </div>
+
+          {docChrome.showComments && docChrome.documentId && !isBooks && (
+            <DocumentComments documentId={docChrome.documentId} variant="rail" />
+          )}
         </div>
       )}
     </div>

@@ -40,7 +40,7 @@ export function Navigation() {
 
   return (
     <header className="nav-header">
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
+      <div className="mx-auto flex w-full max-w-[min(100%,100rem)] items-center justify-between px-4 py-3 sm:px-6 lg:px-8 2xl:px-10">
         <Link to="/" className="group flex items-center gap-2.5">
           <div className="logo-icon flex h-8 w-8 items-center justify-center rounded-lg transition-shadow group-hover:shadow-lg">
             <TreePageLogo size={22} animate={false} variant="onPrimary" />
