@@ -7,8 +7,7 @@ import { useAuthStore } from "@/lib/store";
 import { DocumentTree } from "@/components/document-tree";
 import { DocumentComments } from "@/components/document-comments";
 import { FadeIn } from "@/components/motion-wrapper";
-import { formatDate } from "@/lib/utils";
-import { cn } from "@/lib/utils";
+import { formatDate, cn, pageShellClass } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
 import { canManageBooks } from "@/lib/roles";
 import type { DocItem } from "@/lib/doc-tree";
@@ -130,7 +129,7 @@ export function SpaceDocLayout() {
   const booksTab = `/spaces/${slug}/books`;
 
   return (
-    <div className="mx-auto w-full max-w-[min(100%,100rem)] px-4 py-8 sm:px-6 lg:px-8 2xl:px-10">
+    <div className={cn(pageShellClass, "py-8")}>
       <FadeIn>
         <Link
           to="/spaces"

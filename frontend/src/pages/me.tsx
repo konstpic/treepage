@@ -5,7 +5,7 @@ import { api } from "@/lib/api";
 import { useAuthStore } from "@/lib/store";
 import { useI18n } from "@/lib/i18n";
 import { FadeIn } from "@/components/motion-wrapper";
-import { formatDate } from "@/lib/utils";
+import { formatDate, pageShellClass } from "@/lib/utils";
 
 interface FavoriteItem {
   document_id: string;
@@ -50,7 +50,7 @@ export function MePage() {
 
   if (!isAuthenticated) {
     return (
-      <div className="mx-auto max-w-3xl px-4 py-16 text-center">
+      <div className={`${pageShellClass} py-16 text-center`}>
         <p className="text-muted">{t("me.signInRequired")}</p>
         <Link to="/auth" className="btn-primary mt-4 inline-flex">
           {t("nav.signIn")}
@@ -60,7 +60,7 @@ export function MePage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6" data-tour="me-main">
+    <div className={`${pageShellClass} py-10`} data-tour="me-main">
       <FadeIn>
         <h1 className="text-2xl font-bold text-fg">{t("me.title")}</h1>
         <p className="mt-1 text-sm text-muted">{t("me.subtitle")}</p>

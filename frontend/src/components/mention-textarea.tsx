@@ -87,7 +87,7 @@ export function MentionTextarea({
     <div className="relative">
       <textarea
         ref={ref}
-        className={cn("input-field w-full resize-y", className)}
+        className={cn("input-field w-full resize-none", className)}
         style={{ minHeight: `${minRows * 1.5}rem` }}
         placeholder={placeholder}
         value={value}

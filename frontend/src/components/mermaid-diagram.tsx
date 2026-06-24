@@ -117,7 +117,7 @@ export function MermaidDiagram({ chart }: MermaidDiagramProps) {
         onClick={() => setExpanded(false)}
       >
         <div
-          className="mx-auto flex h-full w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-default bg-surface shadow-2xl"
+          className="mx-auto flex h-full w-full max-w-[min(100%,100rem)] flex-col overflow-hidden rounded-2xl border border-default bg-surface shadow-2xl"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="flex shrink-0 items-center justify-between gap-2 border-b border-default px-4 py-3">

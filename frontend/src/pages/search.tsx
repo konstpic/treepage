@@ -8,7 +8,7 @@ import { SelectField } from "@/components/select-field";
 import { useI18n } from "@/lib/i18n";
 import { useTypewriterText } from "@/lib/use-typewriter";
 import { useAuthStore } from "@/lib/store";
-import { cn } from "@/lib/utils";
+import { cn, pageShellClass } from "@/lib/utils";
 
 interface SearchResult {
   id: string;
@@ -153,7 +153,7 @@ export function SearchPage() {
   });
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
+    <div className={cn(pageShellClass, "py-10")}>
       <FadeIn>
         <div className="flex flex-wrap gap-2" data-tour="search-main">
           <button type="button" className={cn("btn-secondary", mode === "search" && "!bg-primary !text-on-primary")} onClick={() => setMode("search")}>

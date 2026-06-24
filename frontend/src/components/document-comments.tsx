@@ -58,11 +58,11 @@ function countComments(items: Comment[]): number {
 }
 
 function railWidthClass(count: number): string {
-  if (count === 0) return "xl:w-[13.5rem]";
-  if (count <= 2) return "xl:w-[16rem]";
-  if (count <= 5) return "xl:w-[19rem]";
-  if (count <= 10) return "xl:w-[22rem]";
-  return "xl:w-[25rem]";
+  if (count === 0) return "xl:w-[20rem]";
+  if (count <= 2) return "xl:w-[24rem]";
+  if (count <= 5) return "xl:w-[28rem]";
+  if (count <= 10) return "xl:w-[32rem]";
+  return "xl:w-[36rem]";
 }
 
 interface DocumentCommentsProps {

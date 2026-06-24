@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { BookOpen, GitBranch, Search, Shield } from "lucide-react";
 import { FadeIn } from "@/components/motion-wrapper";
 import { useI18n } from "@/lib/i18n";
+import { pageShellClass } from "@/lib/utils";
 
 export function HomePage() {
   const { t } = useI18n();
@@ -14,7 +15,7 @@ export function HomePage() {
   ];
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
+    <div className={`${pageShellClass} py-16`}>
       <FadeIn className="text-center">
         <h1 className="text-4xl font-bold tracking-tight sm:text-6xl">
           {t("home.title")}{" "}

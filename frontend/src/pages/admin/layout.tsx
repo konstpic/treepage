@@ -12,7 +12,7 @@ import {
   UsersRound,
 } from "lucide-react";
 import { useAuthStore } from "@/lib/store";
-import { cn } from "@/lib/utils";
+import { cn, pageShellClass } from "@/lib/utils";
 import { FadeIn } from "@/components/motion-wrapper";
 import { useI18n } from "@/lib/i18n";
 
@@ -51,7 +51,7 @@ export function AdminLayout() {
   });
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+    <div className={cn(pageShellClass, "py-10")}>
       <FadeIn>
         <div className="mb-8 flex items-center gap-3">
           <Database className="h-8 w-8 text-primary" />
