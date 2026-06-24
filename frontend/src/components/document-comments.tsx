@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, MessageSquare } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { api, ApiError } from "@/lib/api";
 import { MentionTextarea } from "@/components/mention-textarea";
@@ -53,9 +53,21 @@ function CommentBody({
   return <>{parts}</>;
 }
 
+function countComments(items: Comment[]): number {
+  return items.reduce((n, c) => n + 1 + countComments(c.replies ?? []), 0);
+}
+
+function railWidthClass(count: number): string {
+  if (count === 0) return "lg:w-[13.5rem]";
+  if (count <= 2) return "lg:w-[16rem]";
+  if (count <= 5) return "lg:w-[19rem]";
+  if (count <= 10) return "lg:w-[22rem]";
+  return "lg:w-[25rem]";
+}
+
 interface DocumentCommentsProps {
   documentId: string;
-  variant?: "inline" | "sidebar";
+  variant?: "inline" | "rail";
   className?: string;
 }
 
@@ -72,6 +84,8 @@ export function DocumentComments({ documentId, variant = "inline", className }: 
     queryFn: () => api<{ items: Comment[] }>(`/api/documents/${documentId}/comments`),
     enabled: isAuthenticated && !!documentId,
   });
+
+  const commentCount = useMemo(() => countComments(data?.items ?? []), [data?.items]);
 
   const addComment = useMutation({
     mutationFn: () =>
@@ -103,16 +117,16 @@ export function DocumentComments({ documentId, variant = "inline", className }: 
 
   function renderComment(c: Comment, depth = 0) {
     return (
-      <div key={c.id} className={depth > 0 ? "ml-3 mt-2 border-l border-default pl-2" : ""}>
+      <div key={c.id} className={depth > 0 ? "ml-2 mt-2 border-l border-default pl-2" : ""}>
         <div
           id={`comment-${c.id}`}
-          className="rounded-lg bg-surface-muted px-3 py-2 text-sm scroll-mt-24"
+          className="rounded-lg bg-surface-muted px-2.5 py-2 text-sm scroll-mt-24"
         >
-          <div className="flex items-center justify-between gap-2">
-            <span className="font-medium text-fg">{c.author_name || t("comments.anonymous")}</span>
-            <span className="text-xs text-subtle">{formatDate(c.created_at)}</span>
+          <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5">
+            <span className="text-xs font-medium text-fg">{c.author_name || t("comments.anonymous")}</span>
+            <span className="text-[10px] text-subtle">{formatDate(c.created_at)}</span>
           </div>
-          <p className="mt-1 whitespace-pre-wrap break-words text-fg">
+          <p className="mt-1 whitespace-pre-wrap break-words text-xs leading-relaxed text-fg">
             <CommentBody body={c.body} mentionLabels={c.mention_labels} />
           </p>
         </div>
@@ -121,50 +135,76 @@ export function DocumentComments({ documentId, variant = "inline", className }: 
     );
   }
 
-  const isSidebar = variant === "sidebar";
+  const isRail = variant === "rail";
+
+  const compose = (
+    <div className="shrink-0 space-y-2">
+      <MentionTextarea
+        value={body}
+        onChange={setBody}
+        placeholder={t("comments.placeholder")}
+        minRows={isRail ? 2 : 4}
+      />
+      {error && <p className="text-xs text-danger-soft">{error}</p>}
+      <button
+        type="button"
+        className="btn-secondary w-full !text-xs"
+        disabled={!body.trim() || addComment.isPending}
+        onClick={() => addComment.mutate()}
+      >
+        {addComment.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : t("comments.post")}
+      </button>
+      <p className="text-[10px] leading-snug text-subtle">{t("comments.mentionHint")}</p>
+    </div>
+  );
 
   return (
-    <section
+    <aside
       className={cn(
-        isSidebar
-          ? "flex h-full min-h-[320px] flex-col rounded-xl border border-default bg-surface p-4 lg:sticky lg:top-4 lg:max-h-[calc(100vh-6rem)]"
+        isRail
+          ? cn(
+              "glass flex w-full flex-col rounded-xl p-3 transition-[width] duration-300 ease-out lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:shrink-0",
+              railWidthClass(commentCount),
+            )
           : "mt-8 border-t border-default pt-6",
         className,
       )}
       data-tour="doc-comments"
     >
-      <h3 className="mb-3 flex shrink-0 items-center gap-2 text-sm font-semibold text-fg">
-        <MessageSquare className="h-4 w-4" />
+      <h3 className="mb-2 flex shrink-0 items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-subtle">
+        <MessageSquare className="h-3.5 w-3.5 text-primary" />
         {t("comments.title")}
+        {commentCount > 0 && (
+          <span className="rounded-full bg-surface-muted px-1.5 py-0.5 text-[10px] font-medium text-muted">
+            {commentCount}
+          </span>
+        )}
       </h3>
-      <div className={cn("min-h-0 flex-1 space-y-3 overflow-y-auto", isSidebar && "pr-1")}>
+
+      {compose}
+
+      <div
+        className={cn(
+          "mt-3 min-h-0 flex-1 space-y-2 overflow-y-auto",
+          isRail && commentCount > 0 && "border-t border-default pt-3",
+        )}
+      >
         {isLoading ? (
-          <Loader2 className="h-5 w-5 animate-spin text-primary" />
+          <div className="flex justify-center py-4">
+            <Loader2 className="h-4 w-4 animate-spin text-primary" />
+          </div>
         ) : (
           <>
             {(data?.items ?? []).map((c) => renderComment(c))}
-            {!data?.items?.length && <p className="text-xs text-muted">{t("comments.empty")}</p>}
+            {!data?.items?.length && isRail && (
+              <p className="text-[11px] text-muted">{t("comments.empty")}</p>
+            )}
+            {!data?.items?.length && !isRail && (
+              <p className="text-xs text-muted">{t("comments.empty")}</p>
+            )}
           </>
         )}
       </div>
-      <div className={cn("mt-4 shrink-0 space-y-2", isSidebar && "border-t border-default pt-3")}>
-        <MentionTextarea
-          value={body}
-          onChange={setBody}
-          placeholder={t("comments.placeholder")}
-          minRows={isSidebar ? 3 : 4}
-        />
-        {error && <p className="text-xs text-danger-soft">{error}</p>}
-        <button
-          type="button"
-          className="btn-secondary w-full !text-xs"
-          disabled={!body.trim() || addComment.isPending}
-          onClick={() => addComment.mutate()}
-        >
-          {addComment.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : t("comments.post")}
-        </button>
-        <p className="text-[10px] text-subtle">{t("comments.mentionHint")}</p>
-      </div>
-    </section>
+    </aside>
   );
 }

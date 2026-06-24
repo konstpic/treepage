@@ -12,7 +12,7 @@ import type { PublishPRInput } from "@/components/publish-pr-dialog";
 import { DocBreadcrumbs } from "@/components/doc-breadcrumbs";
 import { DocumentHistory } from "@/components/document-history";
 import { FadeIn } from "@/components/motion-wrapper";
-import { formatDate } from "@/lib/utils";
+import { formatDate, cn } from "@/lib/utils";
 import { useAuthStore } from "@/lib/store";
 import { useI18n } from "@/lib/i18n";
 
@@ -220,7 +220,8 @@ export function DocumentPage() {
         docPath={doc.path}
         docTitle={doc.title}
       />
-      <article className="glass p-6 sm:p-8">
+      <div className={cn("flex flex-col gap-4", !editing && isAuthenticated && "lg:flex-row lg:items-start")}>
+        <article className="glass min-w-0 flex-1 p-6 sm:p-8">
         {doc.has_pending_changes && doc.repository_id && (
           <DocumentSyncDiff documentId={doc.id} />
         )}
@@ -338,22 +339,21 @@ export function DocumentPage() {
             />
           </>
         ) : (
-          <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start lg:gap-6">
-            <div className="min-w-0">
-              <MarkdownRenderer
-                content={doc.content}
-                spaceSlug={slug}
-                documents={allDocs?.items ?? []}
-                docPath={doc.path}
-              />
-              <DocumentAttachments documentId={doc.id} canEdit={canEdit} />
-            </div>
-            {isAuthenticated && (
-              <DocumentComments documentId={doc.id} variant="sidebar" className="mt-8 lg:mt-0" />
-            )}
-          </div>
+          <>
+            <MarkdownRenderer
+              content={doc.content}
+              spaceSlug={slug}
+              documents={allDocs?.items ?? []}
+              docPath={doc.path}
+            />
+            <DocumentAttachments documentId={doc.id} canEdit={canEdit} />
+          </>
         )}
-      </article>
+        </article>
+        {!editing && isAuthenticated && (
+          <DocumentComments documentId={doc.id} variant="rail" />
+        )}
+      </div>
     </FadeIn>
   );
 }
