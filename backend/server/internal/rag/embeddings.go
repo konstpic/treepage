@@ -8,13 +8,16 @@ import (
 	"github.com/konstpic/treepage/backend/pkg/models"
 )
 
-func (s *Service) rerankWithEmbeddings(ctx context.Context, rows []chunkRow, question string, _ []string) []chunkRow {
+func (s *Service) rerankWithEmbeddings(ctx context.Context, rows []chunkRow, question string, _ []string, qEmb embeddings.Vector) []chunkRow {
 	if s.embed == nil || !s.embed.Available() || len(rows) == 0 {
 		return rows
 	}
-	qEmb, err := s.embed.Embed(ctx, question)
-	if err != nil || len(qEmb) == 0 {
-		return rows
+	if len(qEmb) == 0 {
+		var err error
+		qEmb, err = s.embed.Embed(ctx, question)
+		if err != nil || len(qEmb) == 0 {
+			return rows
+		}
 	}
 
 	ids := make([]string, 0, len(rows))
@@ -110,13 +113,16 @@ func (s *Service) backfillPgVectors(ctx context.Context, limit int) (int, error)
 	return embeddings.BackfillVectorsFromJSONB(ctx, s.db, limit)
 }
 
-func (s *Service) vectorSearchChunks(ctx context.Context, question string, allowed []string, limit int) ([]chunkRow, error) {
+func (s *Service) vectorSearchChunks(ctx context.Context, question string, allowed []string, limit int, qEmb embeddings.Vector) ([]chunkRow, error) {
 	if s.embed == nil || !s.embed.Available() {
 		return nil, nil
 	}
-	qEmb, err := s.embed.Embed(ctx, question)
-	if err != nil || len(qEmb) == 0 {
-		return nil, err
+	if len(qEmb) == 0 {
+		var err error
+		qEmb, err = s.embed.Embed(ctx, question)
+		if err != nil || len(qEmb) == 0 {
+			return nil, err
+		}
 	}
 
 	if embeddings.PgVectorAvailable(s.db) {

@@ -62,21 +62,52 @@ func (s *Service) ReindexAllPublished(ctx context.Context) (int, error) {
 	return len(docs), nil
 }
 
-func (s *Service) retrieveAndRank(ctx context.Context, question string, keywords []string, allowed []string, fetchLimit int, expanded []string) ([]chunkRow, error) {
+func (s *Service) retrieveAndRank(ctx context.Context, question string, keywords []string, allowed []string, fetchLimit int, expanded []string, qEmb embeddings.Vector) ([]chunkRow, error) {
 	passes := s.buildRetrievalPasses(question, expanded)
 	ftsRows, err := s.retrieveChunks(ctx, passes, allowed, fetchLimit)
 	if err != nil {
 		return nil, err
 	}
-	vecRows, err := s.vectorSearchChunks(ctx, question, allowed, fetchLimit)
+	vecRows, err := s.vectorSearchChunks(ctx, question, allowed, fetchLimit, qEmb)
 	if err != nil {
 		return nil, err
 	}
 	merged := mergeChunkRows(ftsRows, vecRows)
-	merged = s.rerankWithEmbeddings(ctx, merged, question, keywords)
+	merged = s.rerankWithEmbeddings(ctx, merged, question, keywords, qEmb)
 	learned := s.loadLearnedSynonyms(ctx)
 	merged = rankChunksWithLearned(merged, keywords, learned)
 	return bestChunkPerDocument(merged), nil
+}
+
+func (s *Service) expandFromLearnedSynonyms(question string, learned map[string][]string) []string {
+	if len(learned) == 0 {
+		return nil
+	}
+	lower := strings.ToLower(question)
+	var out []string
+	seen := map[string]struct{}{strings.ToLower(strings.TrimSpace(question)): {}}
+	for term, syns := range learned {
+		if term == "" {
+			continue
+		}
+		if strings.Contains(lower, term) {
+			for _, syn := range syns {
+				syn = strings.TrimSpace(syn)
+				if syn == "" {
+					continue
+				}
+				if _, ok := seen[strings.ToLower(syn)]; ok {
+					continue
+				}
+				seen[strings.ToLower(syn)] = struct{}{}
+				out = append(out, syn)
+			}
+		}
+	}
+	if len(out) > 6 {
+		out = out[:6]
+	}
+	return out
 }
 
 func (s *Service) Ask(ctx context.Context, question, userID string, globalRoles []string, limit int) (*Answer, error) {
@@ -103,16 +134,21 @@ func (s *Service) Ask(ctx context.Context, question, userID string, globalRoles 
 	keywords := fts.ExtractKeywords(question)
 	learned := s.loadLearnedSynonyms(ctx)
 
-	rows, err := s.retrieveAndRank(ctx, question, keywords, allowed, fetchLimit, nil)
+	var qEmb embeddings.Vector
+	if s.embed != nil && s.embed.Available() {
+		qEmb, _ = s.embed.Embed(ctx, question)
+	}
+
+	rows, err := s.retrieveAndRank(ctx, question, keywords, allowed, fetchLimit, nil, qEmb)
 	if err != nil {
 		return nil, err
 	}
 
 	sources, contextParts, rankedRows := s.filterAndBuildSources(ctx, rows, userID, globalRoles, isSuperAdmin, limit)
 	if len(sources) == 0 {
-		expanded := s.expandQueryWithLLM(ctx, question)
+		expanded := s.expandFromLearnedSynonyms(question, learned)
 		if len(expanded) > 0 {
-			rows, err = s.retrieveAndRank(ctx, question, keywords, allowed, fetchLimit, expanded)
+			rows, err = s.retrieveAndRank(ctx, question, keywords, allowed, fetchLimit, expanded, qEmb)
 			if err != nil {
 				return nil, err
 			}
@@ -122,7 +158,7 @@ func (s *Service) Ask(ctx context.Context, question, userID string, globalRoles 
 
 	if len(sources) == 0 {
 		conf := computeConfidence(nil, "", nil)
-		followUp := s.buildFollowUpQuestions(ctx, question, nil, isCyrillicQuestion(question))
+		followUp := s.buildFollowUpQuestions(question, nil, isCyrillicQuestion(question))
 		return &Answer{
 			Answer:            notFoundMessage(question),
 			Sources:           []Source{},
@@ -164,7 +200,7 @@ Documentation:
 	conf := computeConfidence(rankedRows, answer, citations)
 	followUp := []string(nil)
 	if conf.LowConfidence {
-		followUp = s.buildFollowUpQuestions(ctx, question, rankedRows, isCyrillicQuestion(question))
+		followUp = s.buildFollowUpQuestions(question, rankedRows, isCyrillicQuestion(question))
 	}
 
 	return &Answer{

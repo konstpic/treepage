@@ -1,8 +1,6 @@
 package rag
 
 import (
-	"context"
-	"fmt"
 	"strings"
 
 	"github.com/konstpic/treepage/backend/pkg/fts"
@@ -61,7 +59,7 @@ func computeConfidence(rows []chunkRow, answer string, citations []Citation) con
 	}
 }
 
-func (s *Service) buildFollowUpQuestions(ctx context.Context, question string, rows []chunkRow, cyrillic bool) []string {
+func (s *Service) buildFollowUpQuestions(_ string, rows []chunkRow, cyrillic bool) []string {
 	if len(rows) == 0 {
 		if cyrillic {
 			return []string{
@@ -74,33 +72,7 @@ func (s *Service) buildFollowUpQuestions(ctx context.Context, question string, r
 			"Which space or feature are you asking about?",
 		}
 	}
-	if !s.llm.Available() {
-		return defaultFollowUps(cyrillic)
-	}
-	prompt := fmt.Sprintf(`The user asked: "%s"
-Search found weak or ambiguous matches. Suggest 2 short follow-up questions to clarify what they need.
-One question per line, no numbering.`, question)
-	if cyrillic {
-		prompt += "\nWrite questions in Russian."
-	}
-	raw, err := s.llm.Chat(ctx, "Output only follow-up questions, one per line.", prompt)
-	if err != nil {
-		return defaultFollowUps(cyrillic)
-	}
-	var out []string
-	for _, line := range strings.Split(raw, "\n") {
-		line = strings.TrimSpace(strings.TrimLeft(line, "0123456789.-) "))
-		if len([]rune(line)) >= 10 {
-			out = append(out, line)
-		}
-		if len(out) >= 2 {
-			break
-		}
-	}
-	if len(out) == 0 {
-		return defaultFollowUps(cyrillic)
-	}
-	return out
+	return defaultFollowUps(cyrillic)
 }
 
 func defaultFollowUps(cyrillic bool) []string {

@@ -227,6 +227,9 @@ func (c *Client) chatOllamaPlain(ctx context.Context, systemPrompt, userPrompt s
 		},
 		"temperature": 0.3,
 		"stream":      false,
+		"options": map[string]any{
+			"num_predict": 512,
+		},
 	}
 	body, err := json.Marshal(payload)
 	if err != nil {
